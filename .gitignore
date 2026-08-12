@@ -1,0 +1,30 @@
+# --- Solo codigo fuente: ideas / planning / tooling ---
+Presentacion de IDEA - Proyecto Luis Santander.docx.md
+openspec/
+.atl/
+.vscode/
+
+# --- Python (backend) ---
+__pycache__/
+*.py[cod]
+build/
+dist/
+wheels/
+*.egg-info
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Flutter (cold_day_flutter) ---
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+build/
+*.iml
+.idea/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
