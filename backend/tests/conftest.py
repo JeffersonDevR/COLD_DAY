@@ -54,6 +54,43 @@ async def _ensure_schema():
                 "double precision NOT NULL DEFAULT 0.0"
             )
         )
+        # S3 pacto-vertical (design §Delta modelos): columnas nuevas sobre tablas
+        # existentes — la migración real es S6 (RF-PILOT-001).
+        await conn.execute(
+            text(
+                "ALTER TABLE service_requests "
+                "ADD COLUMN IF NOT EXISTS assigned_technician_id "
+                "integer REFERENCES technicians(id), "
+                "ADD COLUMN IF NOT EXISTS diagnosis_observations text, "
+                "ADD COLUMN IF NOT EXISTS created_at "
+                "timestamptz NOT NULL DEFAULT now()"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE technician_bids "
+                "ADD COLUMN IF NOT EXISTS created_at "
+                "timestamptz NOT NULL DEFAULT now()"
+            )
+        )
+        # FK real technician_bids.technician_id (0 huérfanos verificado en la DB
+        # dev). service_requests.user_id NO puede constraint aún: hay filas
+        # huérfanas históricas (riesgo documentado PR3) -> la FK real llega con
+        # Alembic (S6). `ADD CONSTRAINT IF NOT EXISTS` no existe en Postgres:
+        # el DO block la hace idempotente.
+        await conn.execute(
+            text(
+                "DO $$ BEGIN "
+                "IF NOT EXISTS ("
+                "  SELECT 1 FROM pg_constraint WHERE conname = 'fk_technician_bids_technician'"
+                ") THEN "
+                "  ALTER TABLE technician_bids ADD CONSTRAINT "
+                "fk_technician_bids_technician "
+                "FOREIGN KEY (technician_id) REFERENCES technicians(id); "
+                "END IF; "
+                "END $$;"
+            )
+        )
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -69,6 +106,13 @@ async def _cleanup_test_data(_ensure_schema):
         )
         # S2 contract-fix tests create requests and bids (user_id sin FK real
         # hasta S6); borralos antes de los users dueños.
+        await session.execute(
+            text(
+                "DELETE FROM service_agreements WHERE service_request_id IN "
+                f"(SELECT id FROM service_requests WHERE user_id IN "
+                f"(SELECT id FROM users WHERE document LIKE '{_TEST_DOC_PREFIX}%'))"
+            )
+        )
         await session.execute(
             text(
                 "DELETE FROM technician_bids WHERE service_request_id IN "
