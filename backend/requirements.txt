@@ -5,3 +5,8 @@ asyncpg>=0.29.0
 geoalchemy2>=0.14.3
 pydantic>=2.6.4
 psycopg2-binary>=2.9.9
+# Auth (S1 mvp-polish): bcrypt PINNED <4.1: passlib 1.7.4 breaks with bcrypt>=4.1
+# (removed bcrypt.__about__); 4.0.1 is the last compatible release.
+bcrypt==4.0.1
+passlib[bcrypt]>=1.7.4
+PyJWT>=2.8.0

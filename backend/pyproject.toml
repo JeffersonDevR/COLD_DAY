@@ -6,10 +6,23 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "asyncpg>=0.29.0",
+    "bcrypt==4.0.1",
     "fastapi[standard]>=0.110.0",
     "geoalchemy2>=0.14.3",
+    "passlib[bcrypt]>=1.7.4",
     "psycopg2-binary>=2.9.9",
     "pydantic>=2.6.4",
+    "pyjwt>=2.8.0",
     "sqlalchemy>=2.0.28",
     "uvicorn>=0.28.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+# Un único event loop para toda la sesión: evita que asyncpg reutilice
+# conexiones del pool entre loops (InterfaceError "another operation is in progress").
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+markers = [
+    "integration: tests that require a local PostGIS database (coldday)",
 ]
