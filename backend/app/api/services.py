@@ -2,15 +2,38 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 from app.api.deps import get_current_user, require_roles
 from app.core.database import get_db
-from app.models.service import Equipment, ServiceRequest, Technician, TechnicianBid
+from app.models.service import (
+    Equipment,
+    ServiceAgreement,
+    ServiceRequest,
+    Technician,
+    TechnicianBid,
+)
 from app.models.user import User
-from app.schemas.service import ServiceRequestCreate, TechnicianBidCreate
+from app.schemas.service import (
+    AgreementCreate,
+    DiagnosisCreate,
+    ServiceRequestCreate,
+    TechnicianBidCreate,
+)
+from app.services import lifecycle
 
 router = APIRouter(prefix="/api/services", tags=["Services & Technician Bidding"])
 
 EMPTY_AREA_MESSAGE = "No se encontraron técnicos en tu área"
+
+
+async def _current_technician(db: AsyncSession, user: User) -> Technician:
+    """Perfil de técnico del usuario autenticado (403 si no existe)."""
+    technician = (
+        await db.execute(select(Technician).where(Technician.user_id == user.id))
+    ).scalar_one_or_none()
+    if technician is None:
+        raise HTTPException(status_code=403, detail="Perfil de técnico no encontrado")
+    return technician
 
 
 @router.get("/technicians-nearby/")
@@ -62,6 +85,30 @@ async def find_technicians_nearby(
     if not technicians:
         payload["message"] = EMPTY_AREA_MESSAGE  # RF-MATCH-007
     return payload
+
+
+@router.get("/my")
+async def my_service_requests(
+    user: User = Depends(require_roles("client")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Historial del cliente dueño, fecha desc (RF-SR-010).
+
+    Solo las solicitudes del usuario autenticado; las ajenas nunca aparecen
+    (RF-SR-012).
+    """
+    result = await db.execute(
+        select(ServiceRequest)
+        .options(
+            selectinload(ServiceRequest.equipment),
+            selectinload(ServiceRequest.assigned_technician),
+        )
+        .where(ServiceRequest.user_id == user.id)
+        .order_by(ServiceRequest.created_at.desc())
+    )
+    return {
+        "requests": [_request_summary(req) for req in result.scalars().all()]
+    }
 
 
 @router.post("/", status_code=201)
@@ -118,37 +165,296 @@ async def create_technician_bid(
     if cost_errors:
         raise HTTPException(status_code=422, detail=cost_errors)
 
-    # El rol `technician` ya está validado; el perfil de técnico existe siempre
-    # que el registro haya pasado por /register/technician (RF-AUTH-002).
-    technician = (
-        await db.execute(select(Technician).where(Technician.user_id == user.id))
-    ).scalar_one_or_none()
-    if technician is None:
-        raise HTTPException(status_code=403, detail="Perfil de técnico no encontrado")
-
-    req = await db.get(ServiceRequest, payload.service_request_id)
-    if not req:
-        raise HTTPException(status_code=404, detail="Service request not found")
-
-    bid = TechnicianBid(
-        service_request_id=payload.service_request_id,
-        technician_id=technician.id,
+    technician = await _current_technician(db, user)
+    # La máquina de estados valida verified+free, mercado abierto y duplicado
+    # 409 (RF-TEC-005/006/007) dentro de su transacción atómica (3.4).
+    bid = await lifecycle.create_bid(
+        db,
+        technician=technician,
+        request_id=payload.service_request_id,
         price_offered=payload.price_offered,
         estimated_time_minutes=payload.estimated_time_minutes,
         transport_cost=payload.transport_cost,
         diagnosis_cost=payload.diagnosis_cost,
-        status="pending",
     )
-
-    db.add(bid)
-    if req.status == "requested":
-        req.status = "bidding"  # primer bid abre el mercado (máquina PINNED)
-    await db.commit()
-    await db.refresh(bid)
 
     return {
         "message": "Contraoferta enviada al cliente",
         "bid_id": bid.id,
         "price_offered": bid.price_offered,
         "status": bid.status,
+    }
+
+
+@router.post("/{service_request_id}/bids/{bid_id}/accept")
+async def accept_bid(
+    service_request_id: int,
+    bid_id: int,
+    user: User = Depends(require_roles("client")),
+    db: AsyncSession = Depends(get_db),
+):
+    """RF-SR-003: el cliente dueño acepta un bid desde `bidding` (atómico)."""
+    request = await lifecycle.accept_bid(
+        db, request_id=service_request_id, bid_id=bid_id, user_id=user.id
+    )
+    return {
+        "message": "Oferta aceptada, el técnico realizará el diagnóstico",
+        "request_id": request.id,
+        "status": request.status,
+        "technician_id": request.assigned_technician_id,
+    }
+
+
+@router.post("/{service_request_id}/diagnosis")
+async def register_diagnosis(
+    service_request_id: int,
+    payload: DiagnosisCreate,
+    user: User = Depends(require_roles("technician")),
+    db: AsyncSession = Depends(get_db),
+):
+    """RF-SR-004: el técnico asignado registra las observaciones del diagnóstico."""
+    technician = await _current_technician(db, user)
+    request = await lifecycle.register_diagnosis(
+        db,
+        request_id=service_request_id,
+        technician=technician,
+        observations=payload.observations,
+    )
+    return {
+        "message": "Diagnóstico registrado",
+        "request_id": request.id,
+        "status": request.status,
+    }
+
+
+@router.post("/{service_request_id}/agreements/", status_code=201)
+async def create_agreement(
+    service_request_id: int,
+    payload: AgreementCreate,
+    user: User = Depends(require_roles("technician")),
+    db: AsyncSession = Depends(get_db),
+):
+    """RF-SR-005: el técnico asignado propone el pacto con desglose (atómico)."""
+    technician = await _current_technician(db, user)
+    pact = await lifecycle.create_agreement(
+        db,
+        request_id=service_request_id,
+        technician=technician,
+        labor_cost=payload.labor_cost,
+        transport_cost=payload.transport_cost,
+        diagnosis_cost=payload.diagnosis_cost,
+        observations=payload.observations,
+    )
+    return {
+        "message": "Pacto de servicio propuesto al cliente",
+        "agreement_id": pact.id,
+        "request_id": pact.service_request_id,
+        "total": pact.total,
+        "status": pact.status,
+    }
+
+
+@router.post("/{service_request_id}/agreements/{agreement_id}/accept")
+async def accept_agreement(
+    service_request_id: int,
+    agreement_id: int,
+    user: User = Depends(require_roles("client")),
+    db: AsyncSession = Depends(get_db),
+):
+    """RF-SR-006: el cliente dueño acepta el pacto -> in_progress (atómico)."""
+    request = await lifecycle.accept_pact(
+        db, request_id=service_request_id, agreement_id=agreement_id, user_id=user.id
+    )
+    return {
+        "message": "Pacto aceptado, el servicio está en proceso",
+        "request_id": request.id,
+        "status": request.status,
+    }
+
+
+@router.post("/{service_request_id}/agreements/{agreement_id}/reject")
+async def reject_agreement(
+    service_request_id: int,
+    agreement_id: int,
+    user: User = Depends(require_roles("client")),
+    db: AsyncSession = Depends(get_db),
+):
+    """RF-SR-007: rechazo del pacto reabre el mercado (todos los bids a pending)."""
+    request = await lifecycle.reject_pact(
+        db, request_id=service_request_id, agreement_id=agreement_id, user_id=user.id
+    )
+    return {
+        "message": "Pacto rechazado, las ofertas vuelven a estar disponibles",
+        "request_id": request.id,
+        "status": request.status,
+    }
+
+
+@router.post("/{service_request_id}/complete")
+async def complete_service_request(
+    service_request_id: int,
+    user: User = Depends(require_roles("technician")),
+    db: AsyncSession = Depends(get_db),
+):
+    """RF-SR-008: el técnico asignado finaliza el servicio desde `in_progress`."""
+    technician = await _current_technician(db, user)
+    request = await lifecycle.complete_request(
+        db, request_id=service_request_id, technician=technician
+    )
+    return {
+        "message": "Servicio completado",
+        "request_id": request.id,
+        "status": request.status,
+    }
+
+
+@router.post("/{service_request_id}/cancel")
+async def cancel_service_request(
+    service_request_id: int,
+    user: User = Depends(require_roles("client")),
+    db: AsyncSession = Depends(get_db),
+):
+    """RF-SR-009: cancelación del dueño solo desde requested/bidding (atómico)."""
+    request = await lifecycle.cancel_request(
+        db, request_id=service_request_id, user_id=user.id
+    )
+    return {
+        "message": "Solicitud cancelada",
+        "request_id": request.id,
+        "status": request.status,
+    }
+
+
+@router.get("/{service_request_id}")
+async def get_service_request_detail(
+    service_request_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Detalle con técnico y línea de tiempo (RF-SR-010/012).
+
+    Visible solo para el dueño, el técnico asignado y admin; ajeno -> 404.
+    """
+    result = await db.execute(
+        select(ServiceRequest)
+        .options(
+            selectinload(ServiceRequest.equipment),
+            selectinload(ServiceRequest.bids).selectinload(TechnicianBid.technician),
+            selectinload(ServiceRequest.agreements),
+            selectinload(ServiceRequest.assigned_technician),
+        )
+        .where(ServiceRequest.id == service_request_id)
+    )
+    request = result.scalar_one_or_none()
+    if request is None:
+        raise HTTPException(status_code=404, detail="Service request not found")
+
+    if not _can_view(request, user):
+        raise HTTPException(status_code=404, detail="Service request not found")
+
+    technician = request.assigned_technician
+    return _request_detail(request, technician)
+
+
+def _can_view(request: ServiceRequest, user: User) -> bool:
+    """RF-SR-012: dueño, técnico asignado o admin."""
+    if user.role == "admin" or request.user_id == user.id:
+        return True
+    if user.role == "technician" and request.assigned_technician is not None:
+        # El técnico asignado se identifica por su perfil, no por user.id.
+        return request.assigned_technician.user_id == user.id
+    return False
+
+
+def _request_summary(request: ServiceRequest) -> dict:
+    """Ítem del historial del cliente (GET /api/services/my)."""
+    technician = request.assigned_technician
+    return {
+        "id": request.id,
+        "status": request.status,
+        "service_type": request.service_type,
+        "description": request.description,
+        "equipment": request.equipment.name if request.equipment else None,
+        "created_at": request.created_at.isoformat() if request.created_at else None,
+        "budget_offered": request.budget_offered,
+        "technician": (
+            {
+                "id": technician.id,
+                "name": technician.name,
+                "rating": technician.rating,
+                "specialty": technician.specialty,
+            }
+            if technician
+            else None
+        ),
+    }
+
+
+def _request_detail(request: ServiceRequest, technician: Technician | None) -> dict:
+    """Detalle completo con línea de tiempo (RF-SR-010)."""
+    return {
+        "id": request.id,
+        "status": request.status,
+        "service_type": request.service_type,
+        "description": request.description,
+        "equipment": (
+            {
+                "id": request.equipment.id,
+                "name": request.equipment.name,
+                "sector": request.equipment.sector,
+            }
+            if request.equipment
+            else None
+        ),
+        "created_at": request.created_at.isoformat() if request.created_at else None,
+        "budget_offered": request.budget_offered,
+        "diagnosis_observations": request.diagnosis_observations,
+        "technician": (
+            {
+                "id": technician.id,
+                "name": technician.name,
+                "rating": technician.rating,
+                "specialty": technician.specialty,
+            }
+            if technician
+            else None
+        ),
+        # Línea de tiempo: bids y pactos en orden cronológico (RF-SR-010).
+        "timeline": {
+            "bids": [
+                {
+                    "id": bid.id,
+                    "technician_id": bid.technician_id,
+                    "technician_name": bid.technician.name if bid.technician else None,
+                    "price_offered": bid.price_offered,
+                    "transport_cost": bid.transport_cost,
+                    "diagnosis_cost": bid.diagnosis_cost,
+                    "estimated_time_minutes": bid.estimated_time_minutes,
+                    "status": bid.status,
+                    "created_at": (
+                        bid.created_at.isoformat() if bid.created_at else None
+                    ),
+                }
+                for bid in request.bids
+            ],
+            "agreements": [
+                {
+                    "id": pact.id,
+                    "technician_id": pact.technician_id,
+                    "labor_cost": pact.labor_cost,
+                    "transport_cost": pact.transport_cost,
+                    "diagnosis_cost": pact.diagnosis_cost,
+                    "total": pact.total,
+                    "observations": pact.observations,
+                    "status": pact.status,
+                    "created_at": (
+                        pact.created_at.isoformat() if pact.created_at else None
+                    ),
+                    "decided_at": (
+                        pact.decided_at.isoformat() if pact.decided_at else None
+                    ),
+                }
+                for pact in request.agreements
+            ],
+        },
     }

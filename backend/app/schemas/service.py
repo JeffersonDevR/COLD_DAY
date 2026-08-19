@@ -21,3 +21,22 @@ class TechnicianBidCreate(BaseModel):
     estimated_time_minutes: int
     transport_cost: float
     diagnosis_cost: float
+
+
+class DiagnosisCreate(BaseModel):
+    """Observaciones del diagnóstico del técnico asignado (RF-SR-004)."""
+
+    observations: str = Field(min_length=1, max_length=2000)
+
+
+class AgreementCreate(BaseModel):
+    """Desglose del Pacto de Servicio (RF-SR-005).
+
+    `labor_cost` + `transport_cost` + `diagnosis_cost`; el backend calcula
+    `total` = suma. Costos negativos -> 422 con el campo señalado (ge=0).
+    """
+
+    labor_cost: float = Field(..., ge=0)
+    transport_cost: float = Field(..., ge=0)
+    diagnosis_cost: float = Field(..., ge=0)
+    observations: str | None = Field(None, max_length=2000)
