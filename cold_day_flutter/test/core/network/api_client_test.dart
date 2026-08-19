@@ -610,4 +610,106 @@ void main() {
       expect(result['message'], 'Calificación registrada, ¡gracias!');
     });
   });
+
+  group('ApiClient S5 admin (RF-ADM-001..008)', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({
+        'auth.access_token': 'tok-admin',
+        'auth.refresh_token': 'refresh-admin',
+        'auth.role': 'admin',
+        'auth.user_id': 9,
+      });
+    });
+
+    test('fetchAdminKpis GETea /api/admin/kpis con Bearer', () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/admin/kpis');
+        expect(request.headers['Authorization'], 'Bearer tok-admin');
+        return http.Response(
+          jsonEncode({
+            'total_clients': 5,
+            'total_technicians': 6,
+            'pending_technicians': 2,
+            'requests_by_status': {'requested': 4, 'bidding': 3},
+          }),
+          200,
+        );
+      }));
+
+      final kpis = await ApiClient.fetchAdminKpis();
+      expect(kpis['total_clients'], 5);
+      expect(kpis['pending_technicians'], 2);
+      expect(kpis['requests_by_status']['bidding'], 3);
+    });
+
+    test('fetchAdminTechnicians GETea /api/admin/users/technicians',
+        () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/admin/users/technicians');
+        return http.Response(
+          jsonEncode({
+            'technicians': [
+              {
+                'id': 3,
+                'name': 'Carlos Tecnico',
+                'specialty': 'Neveras',
+                'verification_status': 'pending',
+                'rating': 0.0,
+              }
+            ],
+          }),
+          200,
+        );
+      }));
+
+      final technicians = await ApiClient.fetchAdminTechnicians();
+      expect(technicians, hasLength(1));
+      expect(technicians[0]['id'], 3);
+      expect(technicians[0]['verification_status'], 'pending');
+    });
+
+    test('verifyTechnician POSTea a /technicians/{id}/verify con Bearer',
+        () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/admin/technicians/3/verify');
+        expect(request.headers['Authorization'], 'Bearer tok-admin');
+        return http.Response(
+          jsonEncode({
+            'message': 'Técnico verificado',
+            'technician_id': 3,
+            'verification_status': 'verified',
+          }),
+          200,
+        );
+      }));
+
+      final result = await ApiClient.verifyTechnician(3);
+      expect(result['verification_status'], 'verified');
+    });
+
+    test('rejectTechnician POSTea el motivo a /technicians/{id}/reject',
+        () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/admin/technicians/3/reject');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['reason'], 'Documentación incompleta');
+        return http.Response(
+          jsonEncode({
+            'message': 'Técnico rechazado',
+            'technician_id': 3,
+            'verification_status': 'rejected',
+          }),
+          200,
+        );
+      }));
+
+      final result =
+          await ApiClient.rejectTechnician(3, 'Documentación incompleta');
+      expect(result['verification_status'], 'rejected');
+    });
+  });
 }

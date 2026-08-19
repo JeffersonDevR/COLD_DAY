@@ -395,6 +395,46 @@ class ApiClient {
     );
   }
 
+  // ===== S5 admin (RF-ADM-001..008) =====
+
+  /// KPIs del piloto: totales de clientes/técnicos, pendientes y desglose por
+  /// estado de solicitud (RF-ADM-002). Solo admin (403 para otros roles).
+  static Future<Map<String, dynamic>> fetchAdminKpis() async {
+    final url = Uri.parse("$baseUrl/admin/kpis");
+    final response = await _client
+        .get(url, headers: await _authedHeaders())
+        .timeout(_timeout);
+    return _decodeOrThrow(response, "Error al cargar los KPIs");
+  }
+
+  /// Lista de técnicos para la cola de verificación (RF-ADM-004): el
+  /// dashboard filtra localmente por `verification_status == 'pending'`.
+  static Future<List<Map<String, dynamic>>> fetchAdminTechnicians() async {
+    final url = Uri.parse("$baseUrl/admin/users/technicians");
+    final response = await _client
+        .get(url, headers: await _authedHeaders())
+        .timeout(_timeout);
+    final body = await _decodeOrThrow(response, "Error al cargar los técnicos");
+    final technicians = body['technicians'] as List<dynamic>? ?? [];
+    return technicians.map((item) => item as Map<String, dynamic>).toList();
+  }
+
+  /// RF-ADM-005: aprueba a un técnico pendiente (pending -> verified).
+  static Future<Map<String, dynamic>> verifyTechnician(int technicianId) async {
+    final url = Uri.parse("$baseUrl/admin/technicians/$technicianId/verify");
+    return _postAuthed(url, null, "verificar al técnico");
+  }
+
+  /// RF-ADM-005 / RF-TEC-003: rechaza a un técnico pendiente con motivo
+  /// obligatorio (422 si falta, validado por el backend).
+  static Future<Map<String, dynamic>> rejectTechnician(
+    int technicianId,
+    String reason,
+  ) async {
+    final url = Uri.parse("$baseUrl/admin/technicians/$technicianId/reject");
+    return _postAuthed(url, {"reason": reason}, "rechazar al técnico");
+  }
+
   static Future<List<Map<String, dynamic>>> fetchNearbyRequests({
     required double latitude,
     required double longitude,
