@@ -40,3 +40,16 @@ class AgreementCreate(BaseModel):
     transport_cost: float = Field(..., ge=0)
     diagnosis_cost: float = Field(..., ge=0)
     observations: str | None = Field(None, max_length=2000)
+
+
+class ReviewCreate(BaseModel):
+    """Evaluación post-servicio del cliente dueño (RF-RAT-002).
+
+    Tres sub-dimensiones 1-5 + comentario OPCIONAL <= 1000 caracteres.
+    Fuera de rango / demasiado largo -> 422 por campo (Pydantic).
+    """
+
+    punctuality: int = Field(..., ge=1, le=5)
+    quality: int = Field(..., ge=1, le=5)
+    professionalism: int = Field(..., ge=1, le=5)
+    comment: str | None = Field(None, max_length=1000)

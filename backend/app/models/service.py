@@ -202,3 +202,31 @@ class ServiceAgreement(Base):
 
     service_request = relationship("ServiceRequest", back_populates="agreements")
     technician = relationship("Technician")
+
+
+class Review(Base):
+    """Evaluación del cliente al técnico tras finalizar (S4 ratings, RF-RAT-001..006).
+
+    Una sola por solicitud: `service_request_id` UNIQUE -> duplicado 409
+    (RF-RAT-004). `global_score` = promedio 1 decimal de las 3 sub-dimensiones
+    (RF-RAT-003); `Technician.rating` se recalcula como promedio de los
+    puntajes globales (RF-RAT-005).
+    """
+
+    __tablename__ = "reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    service_request_id = Column(
+        Integer, ForeignKey("service_requests.id"), nullable=False, unique=True
+    )
+    client_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    technician_id = Column(Integer, ForeignKey("technicians.id"), nullable=False)
+    punctuality = Column(Integer, nullable=False)  # 1-5 (RF-RAT-002)
+    quality = Column(Integer, nullable=False)  # 1-5 (RF-RAT-002)
+    professionalism = Column(Integer, nullable=False)  # 1-5 (RF-RAT-002)
+    # Comentario opcional <= 1000 caracteres (RF-RAT-002); validado en schema.
+    comment = Column(Text, nullable=True)
+    global_score = Column(Float, nullable=False)  # promedio 1 decimal
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

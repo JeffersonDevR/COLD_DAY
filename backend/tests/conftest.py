@@ -91,6 +91,28 @@ async def _ensure_schema():
                 "END $$;"
             )
         )
+        # S4 ratings (design §Delta modelos): `reviews` es tabla NUEVA -> create_all
+        # la crea con su constraint único. El bridge garantiza RF-RAT-004 si la
+        # tabla ya existía de una corrida previa sin el constraint (riesgo
+        # documentado PR4: create_all no altera tablas existentes).
+        await conn.execute(
+            text(
+                "DO $$ BEGIN "
+                "IF to_regclass('public.reviews') IS NOT NULL "
+                "AND NOT EXISTS ("
+                "  SELECT 1 FROM pg_index WHERE indexrelid = "
+                "  (SELECT indexrelid FROM pg_index i "
+                "   JOIN pg_class c ON c.oid = i.indrelid "
+                "   JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(i.indkey) "
+                "   WHERE c.relname = 'reviews' AND a.attname = 'service_request_id' "
+                "   AND i.indisunique)"
+                ") THEN "
+                "  ALTER TABLE reviews ADD CONSTRAINT uq_reviews_service_request "
+                "  UNIQUE (service_request_id); "
+                "END IF; "
+                "END $$;"
+            )
+        )
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -98,6 +120,21 @@ async def _cleanup_test_data(_ensure_schema):
     """Remove every row created by this test session (auth + technicians + users)."""
     yield
     async with AsyncSessionLocal() as session:
+        # S4 ratings: reviews referencia requests/technicians/users -> borrar
+        # PRIMERO (FK order: reviews -> agreements -> bids -> requests).
+        has_reviews = (
+            await session.execute(
+                text("SELECT to_regclass('public.reviews')")
+            )
+        ).scalar()
+        if has_reviews is not None:
+            await session.execute(
+                text(
+                    "DELETE FROM reviews WHERE service_request_id IN "
+                    f"(SELECT id FROM service_requests WHERE user_id IN "
+                    f"(SELECT id FROM users WHERE document LIKE '{_TEST_DOC_PREFIX}%'))"
+                )
+            )
         await session.execute(
             text(
                 "DELETE FROM auth_tokens WHERE user_id IN "

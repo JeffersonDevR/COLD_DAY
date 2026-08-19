@@ -16,10 +16,11 @@ from app.models.user import User
 from app.schemas.service import (
     AgreementCreate,
     DiagnosisCreate,
+    ReviewCreate,
     ServiceRequestCreate,
     TechnicianBidCreate,
 )
-from app.services import lifecycle
+from app.services import lifecycle, ratings
 
 router = APIRouter(prefix="/api/services", tags=["Services & Technician Bidding"])
 
@@ -305,6 +306,36 @@ async def complete_service_request(
         "message": "Servicio completado",
         "request_id": request.id,
         "status": request.status,
+    }
+
+
+@router.post("/{service_request_id}/review/", status_code=201)
+async def create_review(
+    service_request_id: int,
+    payload: ReviewCreate,
+    user: User = Depends(require_roles("client")),  # RF-RAT-001: solo cliente dueño
+    db: AsyncSession = Depends(get_db),
+):
+    """RF-RAT-001..006: evaluación post-servicio (3 dims + comentario <= 1000).
+
+    Validaciones en el servicio (orden spec): ajeno -> 403, no completada -> 422,
+    duplicado por request -> 409 (constraint único), y recálculo de
+    Technician.rating como promedio 1 decimal (RF-RAT-005).
+    """
+    review, new_rating = await ratings.create_review(
+        db,
+        request_id=service_request_id,
+        client=user,
+        punctuality=payload.punctuality,
+        quality=payload.quality,
+        professionalism=payload.professionalism,
+        comment=payload.comment,
+    )
+    return {
+        "message": "Calificación registrada, ¡gracias!",
+        "review_id": review.id,
+        "global_score": review.global_score,
+        "technician_rating": new_rating,
     }
 
 
