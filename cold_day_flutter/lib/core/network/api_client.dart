@@ -235,6 +235,141 @@ class ApiClient {
     }
   }
 
+  // ===== S3 vertical del pacto — técnico (RF-SR-004/005/008, RF-MATCH-004) =====
+
+  /// Radar del técnico: solicitudes cercanas `requested`/`bidding` desde el
+  /// endpoint REAL `/api/technicians/requests/nearby/` (RF-MATCH-004). La
+  /// ubicación sale del perfil del técnico en backend, no de params.
+  static Future<List<Map<String, dynamic>>> fetchTechnicianRadar({
+    double radiusKm = 10.0,
+  }) async {
+    final url = Uri.parse(
+      "$baseUrl/technicians/requests/nearby/?radius_km=$radiusKm",
+    );
+    final response = await _client
+        .get(url, headers: await _authedHeaders())
+        .timeout(_timeout);
+    final body = await _decodeOrThrow(response, "Error al cargar el radar");
+    final requests = body['requests'] as List<dynamic>? ?? [];
+    return requests.map((item) => item as Map<String, dynamic>).toList();
+  }
+
+  /// RF-SR-004: el técnico asignado registra las observaciones del diagnóstico.
+  static Future<Map<String, dynamic>> registerDiagnosis({
+    required int requestId,
+    required String observations,
+  }) async {
+    final url = Uri.parse("$baseUrl/services/$requestId/diagnosis");
+    return _postAuthed(url, {"observations": observations}, "registrar el diagnóstico");
+  }
+
+  /// RF-SR-005: el técnico asignado propone el pacto con desglose y observaciones.
+  static Future<Map<String, dynamic>> proposeAgreement({
+    required int requestId,
+    required double laborCost,
+    required double transportCost,
+    required double diagnosisCost,
+    String? observations,
+  }) async {
+    final url = Uri.parse("$baseUrl/services/$requestId/agreements/");
+    return _postAuthed(
+      url,
+      {
+        "labor_cost": laborCost,
+        "transport_cost": transportCost,
+        "diagnosis_cost": diagnosisCost,
+        "observations": observations,
+      },
+      "proponer el pacto",
+    );
+  }
+
+  /// RF-SR-008: el técnico asignado finaliza el servicio desde `in_progress`.
+  static Future<Map<String, dynamic>> completeServiceRequest({
+    required int requestId,
+  }) async {
+    final url = Uri.parse("$baseUrl/services/$requestId/complete");
+    return _postAuthed(url, null, "finalizar el servicio");
+  }
+
+  /// POST autenticado genérico para el vertical del pacto (2xx -> JSON,
+  /// cualquier otro -> Exception con status y detalle).
+  static Future<Map<String, dynamic>> _postAuthed(
+    Uri url,
+    Map<String, dynamic>? body,
+    String errorMessage,
+  ) async {
+    final response = await _client
+        .post(
+          url,
+          headers: await _authedHeaders(),
+          body: body == null ? null : jsonEncode(body),
+        )
+        .timeout(_timeout);
+    return _decodeOrThrow(response, "Error al $errorMessage");
+  }
+
+  // ===== S3 vertical del pacto — cliente (RF-SR-003/006/007/009/010) =====
+
+  /// Historial del cliente dueño (RF-SR-010): GET /api/services/my, fecha desc.
+  static Future<List<Map<String, dynamic>>> fetchMyRequests() async {
+    final url = Uri.parse("$baseUrl/services/my");
+    final response = await _client
+        .get(url, headers: await _authedHeaders())
+        .timeout(_timeout);
+    final body = await _decodeOrThrow(response, "Error al cargar el historial");
+    final requests = body['requests'] as List<dynamic>? ?? [];
+    return requests.map((item) => item as Map<String, dynamic>).toList();
+  }
+
+  /// Detalle con técnico y línea de tiempo (RF-SR-010): GET /api/services/{id}.
+  static Future<Map<String, dynamic>> fetchServiceRequestDetail(
+    int requestId,
+  ) async {
+    final url = Uri.parse("$baseUrl/services/$requestId");
+    final response = await _client
+        .get(url, headers: await _authedHeaders())
+        .timeout(_timeout);
+    return _decodeOrThrow(response, "Error al cargar el detalle");
+  }
+
+  /// RF-SR-003: el cliente dueño acepta un bid desde `bidding`.
+  static Future<Map<String, dynamic>> acceptBid({
+    required int requestId,
+    required int bidId,
+  }) async {
+    final url = Uri.parse("$baseUrl/services/$requestId/bids/$bidId/accept");
+    return _postAuthed(url, null, "aceptar la oferta");
+  }
+
+  /// RF-SR-006: el cliente dueño acepta el pacto -> in_progress.
+  static Future<Map<String, dynamic>> acceptAgreement({
+    required int requestId,
+    required int agreementId,
+  }) async {
+    final url =
+        Uri.parse("$baseUrl/services/$requestId/agreements/$agreementId/accept");
+    return _postAuthed(url, null, "aceptar el pacto");
+  }
+
+  /// RF-SR-007: el cliente dueño rechaza el pacto -> mercado reabre.
+  static Future<Map<String, dynamic>> rejectAgreement({
+    required int requestId,
+    required int agreementId,
+  }) async {
+    final url =
+        Uri.parse("$baseUrl/services/$requestId/agreements/$agreementId/reject");
+    return _postAuthed(url, null, "rechazar el pacto");
+  }
+
+  /// RF-SR-009: el cliente dueño cancela desde requested/bidding (atómico).
+  static Future<Map<String, dynamic>> cancelServiceRequest({
+    required int requestId,
+  }) async {
+    final url = Uri.parse("$baseUrl/services/$requestId/cancel");
+    return _postAuthed(url, null, "cancelar la solicitud");
+  }
+
   static Future<List<Map<String, dynamic>>> fetchNearbyRequests({
     required double latitude,
     required double longitude,

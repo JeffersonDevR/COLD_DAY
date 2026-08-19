@@ -334,4 +334,216 @@ void main() {
       expect(result['bid_id'], 9);
     });
   });
+
+  group('ApiClient S3 técnico (RF-MATCH-004, RF-SR-004/005/008)', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({
+        'auth.access_token': 'tok-s3',
+        'auth.refresh_token': 'refresh-s3',
+        'auth.role': 'technician',
+        'auth.user_id': 2,
+      });
+    });
+
+    test('fetchTechnicianRadar GETea el radar real con Bearer y radius_km',
+        () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/technicians/requests/nearby/');
+        expect(request.headers['Authorization'], 'Bearer tok-s3');
+        expect(request.url.queryParameters['radius_km'], '10.0');
+        return http.Response(
+          jsonEncode({
+            'requests': [
+              {
+                'id': 10,
+                'equipment': 'Nevera clásica',
+                'description': 'No enfría',
+                'latitude': 7.8939,
+                'longitude': -72.5078,
+                'status': 'requested',
+                'my_bid_status': null,
+              }
+            ],
+          }),
+          200,
+        );
+      }));
+
+      final requests = await ApiClient.fetchTechnicianRadar();
+      expect(requests, hasLength(1));
+      expect(requests[0]['id'], 10);
+      expect(requests[0]['status'], 'requested');
+    });
+
+    test('registerDiagnosis POSTea observations a /services/{id}/diagnosis',
+        () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/services/12/diagnosis');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['observations'], 'Fuga de gas refrigerante');
+        return http.Response(
+          jsonEncode({'message': 'Diagnóstico registrado', 'request_id': 12, 'status': 'diagnosis'}),
+          200,
+        );
+      }));
+
+      final result = await ApiClient.registerDiagnosis(
+        requestId: 12,
+        observations: 'Fuga de gas refrigerante',
+      );
+      expect(result['status'], 'diagnosis');
+    });
+
+    test('proposeAgreement POSTea el desglose a /services/{id}/agreements/',
+        () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/services/12/agreements/');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['labor_cost'], 80000);
+        expect(body['transport_cost'], 15000);
+        expect(body['diagnosis_cost'], 35000);
+        expect(body['observations'], 'Fuga de gas');
+        return http.Response(
+          jsonEncode({
+            'message': 'Pacto de servicio propuesto al cliente',
+            'agreement_id': 5,
+            'request_id': 12,
+            'total': 130000,
+            'status': 'proposed',
+          }),
+          201,
+        );
+      }));
+
+      final result = await ApiClient.proposeAgreement(
+        requestId: 12,
+        laborCost: 80000,
+        transportCost: 15000,
+        diagnosisCost: 35000,
+        observations: 'Fuga de gas',
+      );
+      expect(result['total'], 130000);
+    });
+
+    test('completeServiceRequest POSTea a /services/{id}/complete', () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/services/12/complete');
+        return http.Response(
+          jsonEncode({'message': 'Servicio completado', 'request_id': 12, 'status': 'completed'}),
+          200,
+        );
+      }));
+
+      final result = await ApiClient.completeServiceRequest(requestId: 12);
+      expect(result['status'], 'completed');
+    });
+  });
+
+  group('ApiClient S3 cliente (RF-SR-003/006/007/009/010)', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({
+        'auth.access_token': 'tok-cli',
+        'auth.refresh_token': 'refresh-cli',
+        'auth.role': 'client',
+        'auth.user_id': 1,
+      });
+    });
+
+    test('fetchMyRequests GETea /api/services/my con Bearer', () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/services/my');
+        expect(request.headers['Authorization'], 'Bearer tok-cli');
+        return http.Response(
+          jsonEncode({
+            'requests': [
+              {'id': 10, 'status': 'bidding', 'equipment': 'Nevera clásica'},
+            ],
+          }),
+          200,
+        );
+      }));
+
+      final requests = await ApiClient.fetchMyRequests();
+      expect(requests, hasLength(1));
+      expect(requests[0]['id'], 10);
+    });
+
+    test('fetchServiceRequestDetail GETea /api/services/{id}', () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/services/10');
+        return http.Response(
+          jsonEncode({'id': 10, 'status': 'pact_proposed', 'timeline': {'bids': [], 'agreements': []}}),
+          200,
+        );
+      }));
+
+      final detail = await ApiClient.fetchServiceRequestDetail(10);
+      expect(detail['status'], 'pact_proposed');
+      expect(detail['timeline'], isNotNull);
+    });
+
+    test('acceptBid POSTea a /services/{id}/bids/{bidId}/accept', () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/services/10/bids/3/accept');
+        return http.Response(
+          jsonEncode({'message': 'Oferta aceptada', 'request_id': 10, 'status': 'diagnosis'}),
+          200,
+        );
+      }));
+
+      final result = await ApiClient.acceptBid(requestId: 10, bidId: 3);
+      expect(result['status'], 'diagnosis');
+    });
+
+    test('acceptAgreement POSTea a /services/{id}/agreements/{agId}/accept',
+        () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/services/10/agreements/5/accept');
+        return http.Response(
+          jsonEncode({'message': 'Pacto aceptado', 'request_id': 10, 'status': 'in_progress'}),
+          200,
+        );
+      }));
+
+      final result = await ApiClient.acceptAgreement(requestId: 10, agreementId: 5);
+      expect(result['status'], 'in_progress');
+    });
+
+    test('rejectAgreement POSTea a /services/{id}/agreements/{agId}/reject',
+        () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/services/10/agreements/5/reject');
+        return http.Response(
+          jsonEncode({'message': 'Pacto rechazado', 'request_id': 10, 'status': 'bidding'}),
+          200,
+        );
+      }));
+
+      final result = await ApiClient.rejectAgreement(requestId: 10, agreementId: 5);
+      expect(result['status'], 'bidding');
+    });
+
+    test('cancelServiceRequest POSTea a /services/{id}/cancel', () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/services/10/cancel');
+        return http.Response(
+          jsonEncode({'message': 'Solicitud cancelada', 'request_id': 10, 'status': 'cancelled'}),
+          200,
+        );
+      }));
+
+      final result = await ApiClient.cancelServiceRequest(requestId: 10);
+      expect(result['status'], 'cancelled');
+    });
+  });
 }
