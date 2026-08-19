@@ -2,7 +2,14 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:cold_day_flutter/core/network/token_store.dart';
+
 class ApiClient {
+  static http.Client _client = http.Client();
+
+  @visibleForTesting
+  static void setClient(http.Client client) => _client = client;
+
   /// Resuelve la URL base según la plataforma:
   ///
   /// Orden de prioridad:
@@ -34,6 +41,137 @@ class ApiClient {
   /// Timeout corto para fallar rápido y no dejar la UI colgada.
   static const Duration _timeout = Duration(seconds: 8);
 
+  static Future<Map<String, dynamic>> _decodeOrThrow(
+    http.Response response,
+    String message,
+  ) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Future.value(
+        response.body.isEmpty
+            ? <String, dynamic>{}
+            : jsonDecode(response.body) as Map<String, dynamic>,
+      );
+    }
+    throw Exception(
+      "$message (${response.statusCode}): "
+      "${response.body.isEmpty ? 'sin detalle' : response.body}",
+    );
+  }
+
+  static Map<String, String> _jsonHeaders() =>
+      {"Content-Type": "application/json"};
+
+  /// Headers para endpoints autenticados: JSON + `Authorization: Bearer`.
+  /// sin sesión activa lanza para que la UI no pegue sin token.
+  static Future<Map<String, String>> _authedHeaders() async {
+    final token = await TokenStore.readAccessToken();
+    if (token == null) {
+      throw Exception('No hay sesión activa. Iniciá sesión de nuevo.');
+    }
+    return {"Content-Type": "application/json", "Authorization": "Bearer $token"};
+  }
+
+  // ===== Auth (RF-AUTH-001..007) =====
+
+  static Future<Map<String, dynamic>> registerClient({
+    required String fullName,
+    required String document,
+    required String phone,
+    required String password,
+  }) async {
+    final url = Uri.parse("$baseUrl/auth/register/client");
+    final response = await _client
+        .post(
+          url,
+          headers: _jsonHeaders(),
+          body: jsonEncode({
+            "full_name": fullName,
+            "document": document,
+            "phone": phone,
+            "password": password,
+          }),
+        )
+        .timeout(_timeout);
+    return _decodeOrThrow(response, "Error al registrar el cliente");
+  }
+
+  static Future<Map<String, dynamic>> registerTechnician({
+    required String fullName,
+    required String document,
+    required String phone,
+    required String password,
+    required String specialty,
+    required double latitude,
+    required double longitude,
+  }) async {
+    final url = Uri.parse("$baseUrl/auth/register/technician");
+    final response = await _client
+        .post(
+          url,
+          headers: _jsonHeaders(),
+          body: jsonEncode({
+            "full_name": fullName,
+            "document": document,
+            "phone": phone,
+            "password": password,
+            "specialty": specialty,
+            "latitude": latitude,
+            "longitude": longitude,
+          }),
+        )
+        .timeout(_timeout);
+    return _decodeOrThrow(response, "Error al registrar el técnico");
+  }
+
+  static Future<Map<String, dynamic>> login({
+    required String document,
+    required String password,
+  }) async {
+    final url = Uri.parse("$baseUrl/auth/login");
+    final response = await _client
+        .post(
+          url,
+          headers: _jsonHeaders(),
+          body: jsonEncode({"document": document, "password": password}),
+        )
+        .timeout(_timeout);
+    return _decodeOrThrow(response, "Credenciales inválidas");
+  }
+
+  static Future<Map<String, dynamic>> refresh(String refreshToken) async {
+    final url = Uri.parse("$baseUrl/auth/refresh");
+    final response = await _client
+        .post(
+          url,
+          headers: _jsonHeaders(),
+          body: jsonEncode({"refresh_token": refreshToken}),
+        )
+        .timeout(_timeout);
+    return _decodeOrThrow(response, "Error al renovar la sesión");
+  }
+
+  static Future<void> logout(String refreshToken) async {
+    final url = Uri.parse("$baseUrl/auth/logout");
+    final response = await _client
+        .post(
+          url,
+          headers: _jsonHeaders(),
+          body: jsonEncode({"refresh_token": refreshToken}),
+        )
+        .timeout(_timeout);
+    await _decodeOrThrow(response, "Error al cerrar la sesión");
+  }
+
+  static Future<Map<String, dynamic>> me() async {
+    final url = Uri.parse("$baseUrl/auth/me");
+    final response = await _client
+        .get(url, headers: await _authedHeaders())
+        .timeout(_timeout);
+    return _decodeOrThrow(response, "Error al cargar el perfil");
+  }
+
+  // ===== Solicitudes / bids =====
+
   static Future<Map<String, dynamic>> createServiceRequest({
     required int userId,
     required int equipmentId,
@@ -44,10 +182,10 @@ class ApiClient {
     double? budgetOffered,
   }) async {
     final url = Uri.parse("$baseUrl/services/");
-    final response = await http
+    final response = await _client
         .post(
           url,
-          headers: {"Content-Type": "application/json"},
+          headers: _jsonHeaders(),
           body: jsonEncode({
             "user_id": userId,
             "equipment_id": equipmentId,
@@ -74,10 +212,10 @@ class ApiClient {
     required int estimatedTimeMinutes,
   }) async {
     final url = Uri.parse("$baseUrl/services/bids/");
-    final response = await http
+    final response = await _client
         .post(
           url,
-          headers: {"Content-Type": "application/json"},
+          headers: _jsonHeaders(),
           body: jsonEncode({
             "service_request_id": serviceRequestId,
             "technician_id": technicianId,
@@ -94,6 +232,20 @@ class ApiClient {
     }
   }
 
+  static Future<List<Map<String, dynamic>>> fetchNearbyRequests({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final url = Uri.parse("$baseUrl/services/nearby?lat=$latitude&lon=$longitude");
+    final response = await _client.get(url).timeout(_timeout);
+    if (response.statusCode == 200) {
+      final List<dynamic> body = jsonDecode(response.body);
+      return body.map((item) => item as Map<String, dynamic>).toList();
+    } else {
+      throw Exception("Error al buscar solicitudes: ${response.body}");
+    }
+  }
+
   static Future<List<Map<String, dynamic>>> findNearbyTechnicians({
     required double latitude,
     required double longitude,
@@ -103,7 +255,7 @@ class ApiClient {
       "$baseUrl/services/technicians-nearby/"
       "?latitude=$latitude&longitude=$longitude&radius_km=$radiusKm",
     );
-    final response = await http.get(url).timeout(_timeout);
+    final response = await _client.get(url).timeout(_timeout);
 
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -119,7 +271,7 @@ class ApiClient {
   /// Catálogo data-driven: categoría -> sector -> equipos -> precios.
   static Future<List<Map<String, dynamic>>> fetchCatalog() async {
     final url = Uri.parse("$baseUrl/catalog/");
-    final response = await http.get(url).timeout(_timeout);
+    final response = await _client.get(url).timeout(_timeout);
 
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
