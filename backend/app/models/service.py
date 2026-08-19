@@ -91,10 +91,18 @@ class Technician(Base):
     __tablename__ = "technicians"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # backfill S1
     name = Column(String(100), nullable=False)
     rating = Column(Float, default=0.0)
     specialty = Column(String(100), nullable=True)
     location = Column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
+    # S1 delta (design §Delta modelos): pending/verified/rejected; pending por
+    # defecto — solo técnicos verified+free aparecen en el radar (RF-TEC-005).
+    verification_status = Column(
+        String(20), nullable=False, default="pending"
+    )  # pending, verified, rejected
+    rejection_reason = Column(Text, nullable=True)
+    availability = Column(String(10), nullable=False, default="free")  # free, busy
 
 
 class TechnicianBid(Base):
@@ -108,6 +116,8 @@ class TechnicianBid(Base):
     price_offered = Column(
         Float, nullable=False
     )  # Contraoferta del técnico
+    transport_cost = Column(Float, nullable=False, default=0.0)
+    diagnosis_cost = Column(Float, nullable=False, default=0.0)
     estimated_time_minutes = Column(Integer, nullable=False)
     status = Column(
         String(50), default="pending"
