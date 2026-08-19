@@ -546,4 +546,68 @@ void main() {
       expect(result['status'], 'cancelled');
     });
   });
+
+  group('ApiClient S4 ratings (RF-RAT-001..006)', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({
+        'auth.access_token': 'tok-client',
+        'auth.refresh_token': 'refresh-client',
+        'auth.role': 'client',
+        'auth.user_id': 1,
+      });
+    });
+
+    test('submitReview POSTea 3 dims + comentario a /services/{id}/review/',
+        () async {
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/services/10/review/');
+        expect(request.headers['Authorization'], 'Bearer tok-client');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['punctuality'], 5);
+        expect(body['quality'], 4);
+        expect(body['professionalism'], 5);
+        expect(body['comment'], 'Excelente servicio, muy puntual');
+        return http.Response(
+          jsonEncode({
+            'message': 'Calificación registrada, ¡gracias!',
+            'review_id': 1,
+            'global_score': 4.7,
+            'technician_rating': 4.7,
+          }),
+          201,
+        );
+      }));
+
+      final result = await ApiClient.submitReview(
+        requestId: 10,
+        punctuality: 5,
+        quality: 4,
+        professionalism: 5,
+        comment: 'Excelente servicio, muy puntual',
+      );
+      expect(result['global_score'], 4.7);
+      expect(result['technician_rating'], 4.7);
+    });
+
+    test('submitReview permite comentario opcional (null)', () async {
+      ApiClient.setClient(FakeClient((request) {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['comment'], isNull);
+        expect(body['punctuality'], 5);
+        return http.Response(
+          jsonEncode({'message': 'Calificación registrada, ¡gracias!'}),
+          201,
+        );
+      }));
+
+      final result = await ApiClient.submitReview(
+        requestId: 10,
+        punctuality: 5,
+        quality: 5,
+        professionalism: 5,
+      );
+      expect(result['message'], 'Calificación registrada, ¡gracias!');
+    });
+  });
 }

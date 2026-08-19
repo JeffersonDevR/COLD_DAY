@@ -370,6 +370,31 @@ class ApiClient {
     return _postAuthed(url, null, "cancelar la solicitud");
   }
 
+  // ===== S4 ratings (RF-RAT-001..006) =====
+
+  /// RF-RAT-001..003: el cliente dueño evalúa una solicitud COMPLETADA con 3
+  /// sub-dimensiones 1-5 + comentario opcional <= 1000 (validado por backend,
+  /// 422 si excede). Duplicado por solicitud -> 409 del servidor.
+  static Future<Map<String, dynamic>> submitReview({
+    required int requestId,
+    required int punctuality,
+    required int quality,
+    required int professionalism,
+    String? comment,
+  }) async {
+    final url = Uri.parse("$baseUrl/services/$requestId/review/");
+    return _postAuthed(
+      url,
+      {
+        "punctuality": punctuality,
+        "quality": quality,
+        "professionalism": professionalism,
+        "comment": comment,
+      },
+      "enviar la calificación",
+    );
+  }
+
   static Future<List<Map<String, dynamic>>> fetchNearbyRequests({
     required double latitude,
     required double longitude,
