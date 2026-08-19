@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cold_day_flutter/core/network/api_client.dart';
+import 'package:cold_day_flutter/features/ratings/rating_screen.dart';
 import 'package:cold_day_flutter/features/request/pact_review_dialog.dart';
 import 'package:cold_day_flutter/features/request/request_status.dart';
 
@@ -252,6 +253,9 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
   Map<String, dynamic>? _detail;
   bool _loading = true;
   String? _error;
+  // S4 ratings: esta sesión ya calificó la solicitud -> se oculta la acción
+  // (RF-RAT-007; el backend igual rechaza duplicados con 409, RF-RAT-004).
+  bool _reviewed = false;
 
   @override
   void initState() {
@@ -316,6 +320,24 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
     } catch (e) {
       _showMessage('Error al procesar el pacto: $e');
     }
+  }
+
+  /// S4 ratings (RF-RAT-007): el cliente dueño califica un servicio terminado.
+  Future<void> _rateService() async {
+    final technician = _detail?['technician'] as Map<String, dynamic>?;
+    final rated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RatingScreen(
+          requestId: widget.requestId,
+          technicianName: technician?['name'] as String?,
+        ),
+      ),
+    );
+    if (rated != true || !mounted) return;
+    setState(() => _reviewed = true);
+    _showMessage('Calificación registrada, ¡gracias!');
+    _loadDetail();
   }
 
   Future<void> _cancelRequest() async {
@@ -501,6 +523,25 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
               onPressed: _cancelRequest,
               icon: const Icon(Icons.cancel),
               label: const Text('Cancelar solicitud'),
+            ),
+          ),
+        ],
+        // S4 ratings (RF-RAT-007): calificar solo tras la finalización.
+        if (status == 'completed' && !_reviewed) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.amber.shade700,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: _rateService,
+              icon: const Icon(Icons.star),
+              label: const Text('Calificar servicio'),
             ),
           ),
         ],

@@ -310,4 +310,94 @@ void main() {
     expect(cancelPath, '/api/services/10/cancel');
     expect(find.text('Solicitud cancelada'), findsWidgets);
   });
+
+  testWidgets(
+      'servicio completado ofrece calificar: navega, POSTea el review y '
+      'oculta la acción tras calificar', (tester) async {
+    String? reviewPath;
+    Map<String, dynamic>? reviewPayload;
+    ApiClient.setClient(FakeClient((request) {
+      if (request.url.path == '/api/services/10/review/') {
+        reviewPath = request.url.path;
+        reviewPayload = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            'message': 'Calificación registrada, ¡gracias!',
+            'review_id': 1,
+            'global_score': 4.7,
+            'technician_rating': 4.7,
+          }),
+          201,
+        );
+      }
+      if (request.url.path == '/api/services/my') {
+        return http.Response(
+          jsonEncode({
+            'requests': [
+              _summaryJson(id: 10, status: 'completed', technicianName: 'Carlos Tecnico'),
+            ],
+          }),
+          200,
+        );
+      }
+      return http.Response(
+        jsonEncode(_detailJson(id: 10, status: 'completed')),
+        200,
+      );
+    }));
+
+    await tester.pumpWidget(const MaterialApp(home: ClientHistoryScreen()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nevera clásica'));
+    await tester.pumpAndSettle();
+
+    // Acción de calificación solo en estado completado (RF-RAT-007).
+    expect(find.text('Calificar servicio'), findsOneWidget);
+    await tester.tap(find.text('Calificar servicio'));
+    await tester.pumpAndSettle();
+
+    // Pantalla de rating con las 3 sub-dimensiones accesible desde el historial.
+    expect(find.text('Puntualidad'), findsOneWidget);
+    expect(find.text('Calidad'), findsOneWidget);
+    expect(find.text('Profesionalismo'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('comentario')),
+      'Excelente servicio, muy puntual',
+    );
+    await tester.tap(find.text('Enviar calificación'));
+    await tester.pumpAndSettle();
+
+    expect(reviewPath, '/api/services/10/review/');
+    expect(reviewPayload!['punctuality'], 5);
+    expect(reviewPayload!['quality'], 5);
+    expect(reviewPayload!['professionalism'], 5);
+    expect(reviewPayload!['comment'], 'Excelente servicio, muy puntual');
+    // Agradecimiento + la acción desaparece (ya calificado en esta sesión).
+    expect(find.textContaining('Calificación registrada'), findsWidgets);
+    expect(find.text('Calificar servicio'), findsNothing);
+  });
+
+  testWidgets('servicio sin completar NO ofrece calificar', (tester) async {
+    ApiClient.setClient(FakeClient((request) {
+      if (request.url.path == '/api/services/my') {
+        return http.Response(
+          jsonEncode({
+            'requests': [_summaryJson(id: 10, status: 'in_progress')],
+          }),
+          200,
+        );
+      }
+      return http.Response(
+        jsonEncode(_detailJson(id: 10, status: 'in_progress')),
+        200,
+      );
+    }));
+
+    await tester.pumpWidget(const MaterialApp(home: ClientHistoryScreen()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nevera clásica'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Calificar servicio'), findsNothing);
+  });
 }
