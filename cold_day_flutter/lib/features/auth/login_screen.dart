@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:cold_day_flutter/features/equipment/equipment_selection_screen.dart';
-import 'package:cold_day_flutter/features/placeholder/coming_soon_screen.dart';
 
-enum LoginMode { client, technician, provider }
+import 'package:cold_day_flutter/core/network/api_client.dart';
+import 'package:cold_day_flutter/core/network/token_store.dart';
+import 'package:cold_day_flutter/features/auth/auth_router.dart';
+import 'package:cold_day_flutter/features/auth/register_client_screen.dart';
+import 'package:cold_day_flutter/features/auth/register_technician_screen.dart';
 
+enum LoginMode { client, technician }
+
+/// Login real por documento (CC) + contraseña (RF-LAND-004, RF-AUTH-003):
+/// cualquier credencial ya NO entra; el error 401 se muestra y la app no
+/// navega. Al autenticar, guarda el par de tokens y rutea por rol (HU-AUTH-003).
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.mode = LoginMode.client});
 
@@ -14,44 +21,67 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _documentController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _loading = false;
+  String? _error;
 
   String get _title => switch (widget.mode) {
         LoginMode.client => 'Iniciar sesión',
         LoginMode.technician => 'Acceso de técnico',
-        LoginMode.provider => 'Acceso de proveedor',
       };
 
   String get _tagline => switch (widget.mode) {
         LoginMode.client => 'Ingresá para pedir un técnico',
         LoginMode.technician => 'Ingresá para ofrecer tus servicios',
-        LoginMode.provider => 'Ingresá para administrar tu negocio',
       };
 
-  // Login de prueba para el MVP: cualquier credencial entra
   Future<void> _login() async {
-    setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 600)); // simula espera
+    final document = _documentController.text.trim();
+    final password = _passwordController.text;
+    if (document.isEmpty || password.isEmpty) {
+      setState(() => _error = 'Ingresá tu documento y tu contraseña.');
+      return;
+    }
 
-    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
-    // Cliente -> flujo de pedido; técnico/proveedor -> placeholder por ahora
-    final next = widget.mode == LoginMode.client
-        ? const EquipmentSelectionScreen()
-        : ComingSoonScreen(
-            title: _title,
-            message: widget.mode == LoginMode.technician
-                ? 'El flujo de técnicos llega próximamente.'
-                : 'El flujo de proveedores llega próximamente.',
-          );
+    try {
+      final result = await ApiClient.login(document: document, password: password);
+      final role = result['role'] as String? ?? 'client';
+      final userId = result['user_id'] as int? ?? 0;
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => next),
-    );
+      await TokenStore.save(
+        accessToken: result['access_token'] as String,
+        refreshToken: result['refresh_token'] as String,
+        role: role,
+        userId: userId,
+      );
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => roleHome(role)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Credenciales inválidas. Verificá tu documento y contraseña.';
+      });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _goToRegister() {
+    final next = widget.mode == LoginMode.technician
+        ? const RegisterTechnicianScreen()
+        : const RegisterClientScreen();
+    Navigator.push(context, MaterialPageRoute(builder: (context) => next));
   }
 
   @override
@@ -86,37 +116,40 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // Logo de la app
                 Container(
-                  height: 220,
-                  width: 220,
+                  height: 180,
+                  width: 180,
                   alignment: Alignment.center,
                   child: Image.asset(
                     'assets/images/logo.png',
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) => const Icon(
                       Icons.ac_unit,
-                      size: 130,
+                      size: 110,
                       color: Colors.blueAccent,
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
-                // Email
+                // Documento (CC)
                 TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
+                  key: const Key('login_document'),
+                  controller: _documentController,
+                  keyboardType: TextInputType.number,
                   decoration: _inputDecoration(
-                    'Correo electrónico',
-                    Icons.person_outline,
-                    hint: 'ejemplo@correo.com',
+                    'Documento (CC)',
+                    Icons.badge_outlined,
+                    hint: 'Ej. 1123456789',
                   ),
                 ),
                 const SizedBox(height: 16),
 
                 // Contraseña
                 TextField(
+                  key: const Key('login_password'),
                   controller: _passwordController,
                   obscureText: _obscurePassword,
+                  onSubmitted: (_) => _loading ? null : _login(),
                   decoration: _inputDecoration(
                     'Contraseña',
                     Icons.lock_outline,
@@ -131,7 +164,31 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+
+                // Error de autenticación (no se entra con cualquier credencial)
+                if (_error != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFEBEE),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.redAccent),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: const TextStyle(color: Color(0xFFB71C1C)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
 
                 // Botón ingresar
                 SizedBox(
@@ -163,16 +220,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 12),
 
                 TextButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Registro disponible próximamente (MVP en pruebas)',
-                        ),
-                      ),
-                    );
-                  },
-                  child: const Text('¿No tenés cuenta? Registrate'),
+                  onPressed: _loading ? null : _goToRegister,
+                  child: Text(
+                    widget.mode == LoginMode.technician
+                        ? '¿No tenés cuenta? Registrate como técnico'
+                        : '¿No tenés cuenta? Registrate',
+                  ),
                 ),
               ],
             ),
