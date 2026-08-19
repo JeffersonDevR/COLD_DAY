@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cold_day_flutter/core/network/api_client.dart';
+import 'package:cold_day_flutter/features/request/client_history_screen.dart';
 import 'package:cold_day_flutter/features/request/service_request_screen.dart';
 
 /// Flujo de solicitud de servicio (flujo Luis Santander):
@@ -94,6 +95,21 @@ class _EquipmentSelectionScreenState extends State<EquipmentSelectionScreen> {
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
         centerTitle: true,
+        actions: [
+          // RF-SR-010: el historial del cliente es alcanzable desde el flujo.
+          IconButton(
+            tooltip: 'Mi historial',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ClientHistoryScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.history),
+          ),
+        ],
       ),
       body: Container(
         decoration: const BoxDecoration(
