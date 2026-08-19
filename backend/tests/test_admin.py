@@ -210,39 +210,48 @@ async def client():
 
 @pytest.fixture(autouse=True)
 async def _cleanup_after_each_test():
-    """Aísla cada test: borra todo lo creado con documentos de prueba '100...'."""
+    """Aísla cada test: borra lo creado con documentos de prueba '100...'.
+
+    Excluye el admin del seed piloto (1000000001) y solo borra técnicos
+    vinculados a usuarios de prueba (el seed 3000000001.. y los legacy con
+    user_id NULL se conservan).
+    """
     yield
+    docs_filter = "document LIKE '100%' AND document <> '1000000001'"
     async with AsyncSessionLocal() as session:
         await session.execute(
             text(
                 "DELETE FROM auth_tokens WHERE user_id IN "
-                f"(SELECT id FROM users WHERE document LIKE '100%')"
+                f"(SELECT id FROM users WHERE {docs_filter})"
             )
         )
         await session.execute(
             text(
                 "DELETE FROM service_agreements WHERE service_request_id IN "
                 f"(SELECT id FROM service_requests WHERE user_id IN "
-                f"(SELECT id FROM users WHERE document LIKE '100%'))"
+                f"(SELECT id FROM users WHERE {docs_filter}))"
             )
         )
         await session.execute(
             text(
                 "DELETE FROM technician_bids WHERE service_request_id IN "
                 f"(SELECT id FROM service_requests WHERE user_id IN "
-                f"(SELECT id FROM users WHERE document LIKE '100%'))"
+                f"(SELECT id FROM users WHERE {docs_filter}))"
             )
         )
         await session.execute(
             text(
                 f"DELETE FROM service_requests WHERE user_id IN "
-                f"(SELECT id FROM users WHERE document LIKE '100%')"
+                f"(SELECT id FROM users WHERE {docs_filter})"
             )
         )
         await session.execute(
-            text("DELETE FROM technicians WHERE user_id IS NOT NULL")
+            text(
+                f"DELETE FROM technicians WHERE user_id IN "
+                f"(SELECT id FROM users WHERE {docs_filter})"
+            )
         )
-        await session.execute(text("DELETE FROM users WHERE document LIKE '100%'"))
+        await session.execute(text(f"DELETE FROM users WHERE {docs_filter}"))
         await session.commit()
 
 
