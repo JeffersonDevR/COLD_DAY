@@ -42,6 +42,18 @@ async def _ensure_schema():
                 "ADD COLUMN IF NOT EXISTS availability varchar(10) NOT NULL DEFAULT 'free'"
             )
         )
+        # TechnicianBid cost columns (S2 contract fix, RF-SR-002): the baseline
+        # DB predates transport_cost/diagnosis_cost; create_all won't add
+        # columns to an existing table.
+        await conn.execute(
+            text(
+                "ALTER TABLE technician_bids "
+                "ADD COLUMN IF NOT EXISTS transport_cost "
+                "double precision NOT NULL DEFAULT 0.0, "
+                "ADD COLUMN IF NOT EXISTS diagnosis_cost "
+                "double precision NOT NULL DEFAULT 0.0"
+            )
+        )
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -52,6 +64,21 @@ async def _cleanup_test_data(_ensure_schema):
         await session.execute(
             text(
                 "DELETE FROM auth_tokens WHERE user_id IN "
+                f"(SELECT id FROM users WHERE document LIKE '{_TEST_DOC_PREFIX}%')"
+            )
+        )
+        # S2 contract-fix tests create requests and bids (user_id sin FK real
+        # hasta S6); borralos antes de los users dueños.
+        await session.execute(
+            text(
+                "DELETE FROM technician_bids WHERE service_request_id IN "
+                f"(SELECT id FROM service_requests WHERE user_id IN "
+                f"(SELECT id FROM users WHERE document LIKE '{_TEST_DOC_PREFIX}%'))"
+            )
+        )
+        await session.execute(
+            text(
+                f"DELETE FROM service_requests WHERE user_id IN "
                 f"(SELECT id FROM users WHERE document LIKE '{_TEST_DOC_PREFIX}%')"
             )
         )

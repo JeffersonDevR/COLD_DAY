@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 
 class ServiceRequestCreate(BaseModel):
-    user_id: int
+    # Sin user_id: el dueño sale del token autenticado (RF-SR-001, auth PR1).
     equipment_id: int
     service_type: str = Field(
         ..., example="installation"
@@ -14,7 +14,10 @@ class ServiceRequestCreate(BaseModel):
 
 
 class TechnicianBidCreate(BaseModel):
+    # Sin technician_id: el técnico sale del token autenticado (design §API
+    # deltas: "POST /api/services/bids/: technician_id del token").
     service_request_id: int
-    technician_id: int
     price_offered: float
     estimated_time_minutes: int
+    transport_cost: float
+    diagnosis_cost: float

@@ -77,9 +77,9 @@ class ServiceRequest(Base):
     budget_offered = Column(
         Float, nullable=True
     )  # Presupuesto inicial del cliente
-    status = Column(
-        String(50), default="pending"
-    )  # pending, bidding, assigned, completed
+    # Máquina de estados PINNED (spec §3): requested -> bidding -> diagnosis ->
+    # pact_proposed -> in_progress -> completed; terminales: cancelled/completed.
+    status = Column(String(50), default="requested", nullable=False)
 
     equipment = relationship("Equipment")
     bids = relationship(
