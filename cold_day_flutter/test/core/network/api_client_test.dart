@@ -22,24 +22,57 @@ class FakeClient extends http.BaseClient {
 
 void main() {
   group('ApiClient', () {
-    test('fetchNearbyRequests returns a list of requests', () async {
+    // RF-MATCH-006: el radar técnico pega al endpoint REAL
+    // /api/services/technicians-nearby/ (objeto {count, technicians}).
+    test('fetchNearbyRequests hits /api/services/technicians-nearby/',
+        () async {
       ApiClient.setClient(FakeClient((request) {
-        return http.Response(jsonEncode([]), 200);
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/services/technicians-nearby/');
+        expect(request.url.queryParameters['latitude'], '7.8939');
+        expect(request.url.queryParameters['longitude'], '-72.5078');
+        return http.Response(
+          jsonEncode({
+            'count': 1,
+            'radius_km': 5.0,
+            'technicians': [
+              {
+                'id': 7,
+                'name': 'Carlos Tecnico',
+                'rating': 4.5,
+                'specialty': 'Neveras',
+                'distance_km': 1.2,
+              }
+            ],
+          }),
+          200,
+        );
       }));
-      
-      final requests = await ApiClient.fetchNearbyRequests(latitude: 0.0, longitude: 0.0);
-      expect(requests, isA<List<Map<String, dynamic>>>());
-      expect(requests, isEmpty);
+
+      final technicians = await ApiClient.fetchNearbyRequests(
+        latitude: 7.8939,
+        longitude: -72.5078,
+      );
+      expect(technicians, isA<List<Map<String, dynamic>>>());
+      expect(technicians, hasLength(1));
+      expect(technicians[0]['id'], 7);
+      expect(technicians[0]['distance_km'], 1.2);
     });
 
-    test('fetchNearbyRequests returns non-empty list when data exists', () async {
+    test('fetchNearbyRequests returns empty list when area has no technicians',
+        () async {
       ApiClient.setClient(FakeClient((request) {
-        return http.Response(jsonEncode([{'id': 1}]), 200);
+        return http.Response(
+          jsonEncode({'count': 0, 'technicians': []}),
+          200,
+        );
       }));
-      
-      final requests = await ApiClient.fetchNearbyRequests(latitude: 0.0, longitude: 0.0);
-      expect(requests.length, greaterThan(0));
-      expect(requests[0]['id'], 1);
+
+      final technicians = await ApiClient.fetchNearbyRequests(
+        latitude: 0.0,
+        longitude: 0.0,
+      );
+      expect(technicians, isEmpty);
     });
   });
 
@@ -210,6 +243,95 @@ void main() {
       }));
 
       expect(() => ApiClient.me(), throwsA(isA<Exception>()));
+    });
+  });
+
+  group('ApiClient S2 contract fixes (RF-SR-001/002, RF-MATCH-006)', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('createServiceRequest envía Bearer y NO incluye user_id en el payload',
+        () async {
+      await TokenStore.save(
+        accessToken: 'tok-s2',
+        refreshToken: 'refresh-s2',
+        role: 'client',
+        userId: 1,
+      );
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/services/');
+        expect(request.headers['Authorization'], 'Bearer tok-s2');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body.containsKey('user_id'), isFalse);
+        expect(body['equipment_id'], 5);
+        expect(body['service_type'], 'repair');
+        expect(body['description'], 'No enfría');
+        expect(body['latitude'], 7.8939);
+        return http.Response(
+          jsonEncode({'message': 'ok', 'request_id': 42, 'status': 'requested'}),
+          201,
+        );
+      }));
+
+      final result = await ApiClient.createServiceRequest(
+        equipmentId: 5,
+        serviceType: 'repair',
+        description: 'No enfría',
+        latitude: 7.8939,
+        longitude: -72.5078,
+      );
+      expect(result['request_id'], 42);
+    });
+
+    test('createServiceRequest sin sesión activa lanza', () async {
+      ApiClient.setClient(FakeClient((request) {
+        return http.Response('{}', 201);
+      }));
+
+      expect(
+        () => ApiClient.createServiceRequest(
+          equipmentId: 1,
+          serviceType: 'repair',
+          description: 'x',
+          latitude: 7.0,
+          longitude: -72.0,
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('sendTechnicianBid envía costos, Bearer y NO technician_id', () async {
+      await TokenStore.save(
+        accessToken: 'tok-s2',
+        refreshToken: 'refresh-s2',
+        role: 'technician',
+        userId: 2,
+      );
+      ApiClient.setClient(FakeClient((request) {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/services/bids/');
+        expect(request.headers['Authorization'], 'Bearer tok-s2');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['service_request_id'], 42);
+        expect(body['transport_cost'], 15000);
+        expect(body['diagnosis_cost'], 35000);
+        expect(body.containsKey('technician_id'), isFalse);
+        return http.Response(
+          jsonEncode({'message': 'ok', 'bid_id': 9, 'status': 'pending'}),
+          201,
+        );
+      }));
+
+      final result = await ApiClient.sendTechnicianBid(
+        serviceRequestId: 42,
+        priceOffered: 50000,
+        estimatedTimeMinutes: 45,
+        transportCost: 15000,
+        diagnosisCost: 35000,
+      );
+      expect(result['bid_id'], 9);
     });
   });
 }

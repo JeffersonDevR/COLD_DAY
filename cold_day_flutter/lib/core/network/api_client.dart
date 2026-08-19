@@ -173,7 +173,6 @@ class ApiClient {
   // ===== Solicitudes / bids =====
 
   static Future<Map<String, dynamic>> createServiceRequest({
-    required int userId,
     required int equipmentId,
     required String serviceType,
     required String description,
@@ -181,13 +180,13 @@ class ApiClient {
     required double longitude,
     double? budgetOffered,
   }) async {
+    // RF-SR-001: el dueño sale del token autenticado; el payload NO lleva user_id.
     final url = Uri.parse("$baseUrl/services/");
     final response = await _client
         .post(
           url,
-          headers: _jsonHeaders(),
+          headers: await _authedHeaders(),
           body: jsonEncode({
-            "user_id": userId,
             "equipment_id": equipmentId,
             "service_type": serviceType,
             "description": description,
@@ -207,20 +206,24 @@ class ApiClient {
 
   static Future<Map<String, dynamic>> sendTechnicianBid({
     required int serviceRequestId,
-    required int technicianId,
     required double priceOffered,
     required int estimatedTimeMinutes,
+    required double transportCost,
+    required double diagnosisCost,
   }) async {
+    // RF-SR-002: el bid lleva los costos (>= 0, validado por backend) y el
+    // técnico sale del token (no se envía technician_id).
     final url = Uri.parse("$baseUrl/services/bids/");
     final response = await _client
         .post(
           url,
-          headers: _jsonHeaders(),
+          headers: await _authedHeaders(),
           body: jsonEncode({
             "service_request_id": serviceRequestId,
-            "technician_id": technicianId,
             "price_offered": priceOffered,
             "estimated_time_minutes": estimatedTimeMinutes,
+            "transport_cost": transportCost,
+            "diagnosis_cost": diagnosisCost,
           }),
         )
         .timeout(_timeout);
@@ -235,12 +238,20 @@ class ApiClient {
   static Future<List<Map<String, dynamic>>> fetchNearbyRequests({
     required double latitude,
     required double longitude,
+    double radiusKm = 5.0,
   }) async {
-    final url = Uri.parse("$baseUrl/services/nearby?lat=$latitude&lon=$longitude");
+    // RF-MATCH-006: endpoint REAL del radar del técnico
+    // (/api/services/technicians-nearby/, no el /api/services/nearby inexistente).
+    final url = Uri.parse(
+      "$baseUrl/services/technicians-nearby/"
+      "?latitude=$latitude&longitude=$longitude&radius_km=$radiusKm",
+    );
     final response = await _client.get(url).timeout(_timeout);
+
     if (response.statusCode == 200) {
-      final List<dynamic> body = jsonDecode(response.body);
-      return body.map((item) => item as Map<String, dynamic>).toList();
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final technicians = body['technicians'] as List<dynamic>? ?? [];
+      return technicians.map((item) => item as Map<String, dynamic>).toList();
     } else {
       throw Exception("Error al buscar solicitudes: ${response.body}");
     }
