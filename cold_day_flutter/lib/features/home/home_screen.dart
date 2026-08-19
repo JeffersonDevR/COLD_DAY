@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cold_day_flutter/features/auth/login_screen.dart';
+import 'package:cold_day_flutter/features/auth/register_client_screen.dart';
+import 'package:cold_day_flutter/features/auth/register_technician_screen.dart';
 import 'package:cold_day_flutter/features/pqr/pqr_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -69,7 +71,26 @@ class HomeScreen extends StatelessWidget {
                   );
                 },
               ),
-              const SizedBox(height: 16),
+              // Registro real de cliente (RF-LAND-002) — reemplaza el SnackBar
+              // "próximamente": navega al formulario de registro, no a un dead-end.
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RegisterClientScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'Regístrate como cliente',
+                    style: TextStyle(color: Color(0xFF90CAF9)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
 
               // Opción 2: Soy un técnico
               _HomeOptionCard(
@@ -87,23 +108,23 @@ class HomeScreen extends StatelessWidget {
                   );
                 },
               ),
-              const SizedBox(height: 16),
-
-              // Opción 3: Soy un proveedor
-              _HomeOptionCard(
-                icon: Icons.storefront_outlined,
-                title: 'Soy un proveedor',
-                subtitle: 'Administrá tu negocio y tus técnicos',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const LoginScreen(
-                        mode: LoginMode.provider,
+              // Registro real de técnico (RF-LAND-003)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RegisterTechnicianScreen(),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                  child: const Text(
+                    'Regístrate como técnico',
+                    style: TextStyle(color: Color(0xFF90CAF9)),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
 
