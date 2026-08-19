@@ -122,6 +122,13 @@ async def _cleanup_after_each_test():
         )
         await session.execute(
             text(
+                "DELETE FROM service_agreements WHERE service_request_id IN "
+                f"(SELECT id FROM service_requests WHERE user_id IN "
+                f"(SELECT id FROM users WHERE document LIKE '100%'))"
+            )
+        )
+        await session.execute(
+            text(
                 "DELETE FROM technician_bids WHERE service_request_id IN "
                 f"(SELECT id FROM service_requests WHERE user_id IN "
                 f"(SELECT id FROM users WHERE document LIKE '100%'))"
@@ -235,7 +242,9 @@ async def test_bid_with_negative_diagnosis_cost_returns_422_per_field(client):
 
 async def test_successful_bid_creates_bid_with_costs_and_sets_bidding(client):
     client_doc, client_token = await _register_and_login(client, "client")
-    _, tech_token = await _register_and_login(client, "technician")
+    tech_doc, tech_token = await _register_and_login(client, "technician")
+    # RF-TEC-006 (aplicado en 3.4): ofertar exige técnico `verified`.
+    await _update_technician(tech_doc, verification_status="verified")
     equipment_id = await _first_equipment_id()
     request = await _create_request(client, client_token, equipment_id)
 
