@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cold_day_flutter/core/network/api_client.dart';
-import 'package:cold_day_flutter/features/request/request_confirmation_screen.dart';
+import 'package:cold_day_flutter/features/request/service_request_screen.dart';
 
 /// Flujo de solicitud de servicio (flujo Luis Santander):
-/// categoría -> tecnología (si aplica) -> sector (Residencial/Industrial) -> confirmación.
+/// categoría -> tecnología (si aplica) -> sector (Residencial/Industrial)
+/// -> Solicitud (RF-LAND-005: sin dead-end estático).
 class EquipmentSelectionScreen extends StatefulWidget {
   const EquipmentSelectionScreen({super.key});
 
@@ -257,13 +258,27 @@ class _EquipmentSelectionScreenState extends State<EquipmentSelectionScreen> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               onPressed: () {
+                // RF-LAND-005: Continúa a la creación de la solicitud real,
+                // no al dead-end estático de confirmación.
+                final equipments =
+                    _selectedCategory![_selectedSector!] as List<dynamic>? ?? [];
+                if (equipments.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('No hay equipos disponibles para este sector'),
+                    ),
+                  );
+                  return;
+                }
+                final first = equipments.first as Map<String, dynamic>;
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => RequestConfirmationScreen(
-                      category: _selectedCategory!['name'] as String,
-                      technology: _selectedTechnology,
+                    builder: (context) => ServiceRequestScreen(
+                      equipmentId: first['id'] as int,
                       sector: _selectedSector!,
+                      equipmentType: first['name'] as String,
+                      serviceType: 'repair',
                     ),
                   ),
                 );

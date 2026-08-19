@@ -35,10 +35,10 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
     });
 
     try {
-      final technicians = await ApiClient.findNearbyTechnicians(
+      // RF-MATCH-006: el radar pega al endpoint real de técnicos cercanos.
+      final technicians = await ApiClient.fetchNearbyRequests(
         latitude: widget.latitude,
         longitude: widget.longitude,
-        radiusKm: 5.0,
       );
       if (!mounted) return;
       setState(() => _technicians = technicians);
@@ -50,25 +50,40 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
     }
   }
 
-  Future<void> _acceptTechnician(Map<String, dynamic> tech) async {
-    // El precio se define en la contraoferta del técnico.
-    // Para el MVP, el cliente acepta con el presupuesto que ofreció o un valor sugerido.
-    final controller = TextEditingController(text: '80000');
+  Future<void> _sendOffer(Map<String, dynamic> tech) async {
+    // Diálogo de oferta con los costos del bid (RF-TEC-006, RF-SR-002):
+    // traslado + diagnóstico, ambos >= 0.
+    final transportController = TextEditingController(text: '15000');
+    final diagnosisController = TextEditingController(text: '35000');
 
-    final price = await showDialog<double>(
+    final costs = await showDialog<List<double>>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Confirmar oferta'),
+        title: const Text('Enviar oferta'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Aceptar a ${tech['name']}'),
+            Text('Oferta para ${tech['name']}'),
             const SizedBox(height: 12),
             TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
+              controller: transportController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
-                labelText: 'Precio ofrecido (COP)',
+                labelText: 'Costo de traslado (COP)',
+                prefixText: '\$ ',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: diagnosisController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Costo de diagnóstico (COP)',
                 prefixText: '\$ ',
                 border: OutlineInputBorder(),
               ),
@@ -81,22 +96,40 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: () =>
-                Navigator.pop(ctx, double.tryParse(controller.text)),
-            child: const Text('Confirmar'),
+            onPressed: () {
+              final transport = double.tryParse(transportController.text);
+              final diagnosis = double.tryParse(diagnosisController.text);
+              if (transport == null ||
+                  transport < 0 ||
+                  diagnosis == null ||
+                  diagnosis < 0) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(
+                    content: Text('Los costos deben ser números mayores o iguales a 0'),
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(ctx, [transport, diagnosis]);
+            },
+            child: const Text('Enviar oferta'),
           ),
         ],
       ),
     );
 
-    if (price == null || !mounted) return;
+    if (costs == null || !mounted) return;
+
+    final transport = costs[0];
+    final diagnosis = costs[1];
 
     try {
       await ApiClient.sendTechnicianBid(
         serviceRequestId: widget.requestId,
-        technicianId: tech['id'],
-        priceOffered: price,
+        priceOffered: transport + diagnosis,
         estimatedTimeMinutes: 45,
+        transportCost: transport,
+        diagnosisCost: diagnosis,
       );
 
       if (!mounted) return;
@@ -105,10 +138,11 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
-          title: const Text('¡Servicio Asignado! ❄️'),
+          title: const Text('¡Oferta enviada!'),
           content: Text(
-            'Has seleccionado a ${tech['name']} por \$${price.toStringAsFixed(0)}. '
-            'El técnico fue notificado y va en camino.',
+            'Tu oferta para ${tech['name']} se envió: '
+            '\$${transport.toStringAsFixed(0)} de traslado + '
+            '\$${diagnosis.toStringAsFixed(0)} de diagnóstico.',
           ),
           actions: [
             FilledButton(
@@ -123,7 +157,7 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al aceptar oferta: $e')),
+        SnackBar(content: Text('Error al enviar la oferta: $e')),
       );
     }
   }
@@ -223,6 +257,7 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
     }
 
     if (_technicians.isEmpty) {
+      // RF-MATCH-007: mensaje de área sin cobertura.
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -230,7 +265,8 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
             Icon(Icons.radar, size: 56, color: Colors.grey),
             SizedBox(height: 12),
             Text(
-              'No hay técnicos en el radio',
+              'No se encontraron técnicos en tu área',
+              textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             SizedBox(height: 4),
@@ -350,9 +386,9 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: () => _acceptTechnician(tech),
+                    onPressed: () => _sendOffer(tech),
                     icon: const Icon(Icons.handshake),
-                    label: const Text('Aceptar oferta'),
+                    label: const Text('Enviar oferta'),
                   ),
                 ),
               ],

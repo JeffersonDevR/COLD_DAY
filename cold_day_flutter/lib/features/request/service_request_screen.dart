@@ -94,8 +94,8 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     try {
       final budget = double.tryParse(_budgetController.text);
 
+      // RF-SR-001: el dueño sale del token autenticado, no de un userId hardcoded.
       final result = await ApiClient.createServiceRequest(
-        userId: 1, // Usuario de prueba MVP
         equipmentId: widget.equipmentId,
         serviceType: widget.serviceType,
         description: _descriptionController.text,
