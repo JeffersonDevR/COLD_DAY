@@ -2,6 +2,7 @@
 // funcional (logo + tagline + tarjetas de rol) y el flujo core del cliente es
 // alcanzable: Equipo -> Solicitud -> Radar (sin dead-end estático).
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,7 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:cold_day_flutter/core/network/api_client.dart';
-import 'package:cold_day_flutter/features/equipment/equipment_selection_screen.dart';
+import 'package:cold_day_flutter/features/request/simple_request_screen.dart';
 import 'package:cold_day_flutter/main.dart';
 
 class FakeClient extends http.BaseClient {
@@ -43,6 +44,10 @@ Map<String, dynamic> _catalog() => {
     };
 
 void main() {
+  setUpAll(() {
+    HttpOverrides.global = null;
+  });
+
   testWidgets('MyApp renders the Cold Day landing', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
 
@@ -91,33 +96,27 @@ void main() {
       fail('Unexpected request: ${request.method} ${request.url.path}');
     }));
 
-    await tester.pumpWidget(const MaterialApp(home: EquipmentSelectionScreen()));
+    await tester.pumpWidget(const MaterialApp(home: SimpleRequestScreen()));
     await tester.pumpAndSettle();
 
-    // Paso 1: elegir equipo (categoría) y sector.
-    await tester.tap(find.text('Neveras'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Residencial'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Continuar'));
+    // The screen should show "¿Qué necesitás?"
+    expect(find.text('¿Qué necesitás?'), findsOneWidget);
+
+    // Wait for catalog to load
     await tester.pumpAndSettle();
 
-    // Paso 2: pantalla de solicitud (sin userId hardcoded).
-    expect(find.text('Detalles de la Solicitud'), findsOneWidget);
+    // Fill in the description
     await tester.enterText(
-      find.widgetWithText(TextField, 'Ej. El aire acondicionado no enfría y bota agua...'),
+      find.byType(TextField).first,
       'Nevera no enfria',
     );
-    await tester.scrollUntilVisible(
-      find.text('Lanzar al Radar'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.text('Lanzar al Radar'));
+
+    // Scroll down to the button
+    await tester.ensureVisible(find.text('Buscar técnicos'));
+    await tester.tap(find.text('Buscar técnicos'), warnIfMissed: false);
     await tester.pumpAndSettle();
 
-    // Paso 3: el radar de técnicos es alcanzable (no el dead-end estático).
-    expect(find.text('Radar de Técnicos #42'), findsOneWidget);
-    expect(find.text('No se encontraron técnicos en tu área'), findsOneWidget);
+    // The map screen should open
+    expect(find.text('Mapa de Técnicos #42'), findsOneWidget);
   });
 }

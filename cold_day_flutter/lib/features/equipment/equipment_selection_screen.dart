@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cold_day_flutter/core/network/api_client.dart';
+import 'package:cold_day_flutter/core/network/token_store.dart';
+import 'package:cold_day_flutter/features/home/home_screen.dart';
 import 'package:cold_day_flutter/features/request/client_history_screen.dart';
 import 'package:cold_day_flutter/features/request/service_request_screen.dart';
 
@@ -108,6 +110,22 @@ class _EquipmentSelectionScreenState extends State<EquipmentSelectionScreen> {
               );
             },
             icon: const Icon(Icons.history),
+          ),
+          IconButton(
+            tooltip: 'Cerrar sesión',
+            onPressed: () async {
+              final refresh = await TokenStore.readRefreshToken();
+              if (refresh != null) {
+                try { await ApiClient.logout(refresh); } catch (_) {}
+              }
+              await TokenStore.clear();
+              if (!context.mounted) return;
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const HomeScreen()),
+                (_) => false,
+              );
+            },
+            icon: const Icon(Icons.logout),
           ),
         ],
       ),

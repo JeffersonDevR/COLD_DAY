@@ -8,14 +8,16 @@
 import 'package:flutter/material.dart';
 
 import 'package:cold_day_flutter/features/admin/admin_dashboard_screen.dart';
+// ignore: unused_import
 import 'package:cold_day_flutter/features/equipment/equipment_selection_screen.dart';
+import 'package:cold_day_flutter/features/request/simple_request_screen.dart';
 import 'package:cold_day_flutter/features/home/home_screen.dart';
 import 'package:cold_day_flutter/features/technician/technician_dashboard.dart';
 
 Widget roleHome(String? role) {
   switch (role) {
     case 'client':
-      return const EquipmentSelectionScreen();
+      return const SimpleRequestScreen();
     case 'technician':
       return TechnicianDashboard();
     case 'admin':

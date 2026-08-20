@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cold_day_flutter/core/network/api_client.dart';
+import 'package:cold_day_flutter/core/network/token_store.dart';
+import 'package:cold_day_flutter/features/home/home_screen.dart';
 import 'package:cold_day_flutter/features/request/request_status.dart';
 import 'package:cold_day_flutter/features/technician/bid_submission_screen.dart';
 import 'package:cold_day_flutter/features/technician/diagnosis_screen.dart';
 import 'package:cold_day_flutter/features/technician/pact_proposal_screen.dart';
+import 'package:cold_day_flutter/features/technician/service_config_screen.dart';
 
 /// Dashboard del técnico (HU-SR-002): radar real de solicitudes cercanas
 /// (RF-MATCH-004) con acciones según el estado de cada solicitud:
@@ -130,9 +133,35 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
         centerTitle: true,
         actions: [
           IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ServiceConfigScreen()),
+              );
+            },
+            icon: const Icon(Icons.settings),
+            tooltip: 'Mis servicios',
+          ),
+          IconButton(
             onPressed: _loading ? null : _loadRadar,
             icon: const Icon(Icons.refresh),
             tooltip: 'Actualizar radar',
+          ),
+          IconButton(
+            tooltip: 'Cerrar sesión',
+            onPressed: () async {
+              final refresh = await TokenStore.readRefreshToken();
+              if (refresh != null) {
+                try { await ApiClient.logout(refresh); } catch (_) {}
+              }
+              await TokenStore.clear();
+              if (!context.mounted) return;
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const HomeScreen()),
+                (_) => false,
+              );
+            },
+            icon: const Icon(Icons.logout),
           ),
         ],
       ),

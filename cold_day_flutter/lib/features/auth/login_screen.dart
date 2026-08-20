@@ -6,7 +6,7 @@ import 'package:cold_day_flutter/features/auth/auth_router.dart';
 import 'package:cold_day_flutter/features/auth/register_client_screen.dart';
 import 'package:cold_day_flutter/features/auth/register_technician_screen.dart';
 
-enum LoginMode { client, technician }
+enum LoginMode { client, technician, admin }
 
 /// Login real por documento (CC) + contraseña (RF-LAND-004, RF-AUTH-003):
 /// cualquier credencial ya NO entra; el error 401 se muestra y la app no
@@ -30,11 +30,13 @@ class _LoginScreenState extends State<LoginScreen> {
   String get _title => switch (widget.mode) {
         LoginMode.client => 'Iniciar sesión',
         LoginMode.technician => 'Acceso de técnico',
+        LoginMode.admin => 'Panel de administración',
       };
 
   String get _tagline => switch (widget.mode) {
         LoginMode.client => 'Ingresá para pedir un técnico',
         LoginMode.technician => 'Ingresá para ofrecer tus servicios',
+        LoginMode.admin => 'Acceso exclusivo para administradores',
       };
 
   Future<void> _login() async {
@@ -219,14 +221,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                TextButton(
-                  onPressed: _loading ? null : _goToRegister,
-                  child: Text(
-                    widget.mode == LoginMode.technician
-                        ? '¿No tenés cuenta? Registrate como técnico'
-                        : '¿No tenés cuenta? Registrate',
+                if (widget.mode != LoginMode.admin)
+                  TextButton(
+                    onPressed: _loading ? null : _goToRegister,
+                    child: Text(
+                      widget.mode == LoginMode.technician
+                          ? '¿No tenés cuenta? Registrate como técnico'
+                          : '¿No tenés cuenta? Registrate',
+                    ),
                   ),
-                ),
               ],
             ),
           ),

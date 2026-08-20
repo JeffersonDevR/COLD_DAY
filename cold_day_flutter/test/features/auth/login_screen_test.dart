@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:cold_day_flutter/core/network/api_client.dart';
 import 'package:cold_day_flutter/features/auth/login_screen.dart';
-import 'package:cold_day_flutter/features/equipment/equipment_selection_screen.dart';
+import 'package:cold_day_flutter/features/request/simple_request_screen.dart';
 import 'package:cold_day_flutter/features/technician/technician_dashboard.dart';
 
 class FakeApiClient extends http.BaseClient {
@@ -70,7 +70,7 @@ void main() {
       findsOneWidget,
     );
     // …y la app NO navega a ningún flujo.
-    expect(find.byType(EquipmentSelectionScreen), findsNothing);
+    expect(find.byType(SimpleRequestScreen), findsNothing);
     expect(find.byType(TechnicianDashboard), findsNothing);
   });
 
@@ -144,6 +144,6 @@ void main() {
     await tester.tap(find.text('Ingresar'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(EquipmentSelectionScreen), findsOneWidget);
+    expect(find.byType(SimpleRequestScreen), findsOneWidget);
   });
 }

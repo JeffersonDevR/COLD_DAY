@@ -152,6 +152,34 @@ class HomeScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 ),
               ),
+
+              const SizedBox(height: 32),
+
+              // Acceso de administrador (discreto, no prominente)
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(
+                        mode: LoginMode.admin,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.admin_panel_settings_outlined,
+                  size: 18,
+                  color: Color(0xFF546E7A),
+                ),
+                label: const Text(
+                  'Acceso administrador',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF546E7A),
+                  ),
+                ),
+              ),
             ],
           ),
         ),

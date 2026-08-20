@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:cold_day_flutter/core/network/api_client.dart';
+import 'package:cold_day_flutter/core/network/token_store.dart';
+import 'package:cold_day_flutter/features/home/home_screen.dart';
 import 'package:cold_day_flutter/features/request/request_status.dart';
 
 /// Dashboard de administración (HU-ADM-001/002, RF-ADM-001..008).
@@ -131,6 +133,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh),
             tooltip: 'Actualizar panel',
+          ),
+          IconButton(
+            tooltip: 'Cerrar sesión',
+            onPressed: () async {
+              final refresh = await TokenStore.readRefreshToken();
+              if (refresh != null) {
+                try { await ApiClient.logout(refresh); } catch (_) {}
+              }
+              await TokenStore.clear();
+              if (!context.mounted) return;
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const HomeScreen()),
+                (_) => false,
+              );
+            },
+            icon: const Icon(Icons.logout),
           ),
         ],
       ),

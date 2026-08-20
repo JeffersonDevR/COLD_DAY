@@ -265,10 +265,11 @@ void main() {
         expect(request.headers['Authorization'], 'Bearer tok-s2');
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         expect(body.containsKey('user_id'), isFalse);
-        expect(body['equipment_id'], 5);
+        expect(body['equipment_id'], null);
         expect(body['service_type'], 'repair');
         expect(body['description'], 'No enfría');
         expect(body['latitude'], 7.8939);
+        expect(body['category_hint'], 'Neveras');
         return http.Response(
           jsonEncode({'message': 'ok', 'request_id': 42, 'status': 'requested'}),
           201,
@@ -276,11 +277,11 @@ void main() {
       }));
 
       final result = await ApiClient.createServiceRequest(
-        equipmentId: 5,
         serviceType: 'repair',
         description: 'No enfría',
         latitude: 7.8939,
         longitude: -72.5078,
+        categoryHint: 'Neveras',
       );
       expect(result['request_id'], 42);
     });
@@ -292,7 +293,6 @@ void main() {
 
       expect(
         () => ApiClient.createServiceRequest(
-          equipmentId: 1,
           serviceType: 'repair',
           description: 'x',
           latitude: 7.0,

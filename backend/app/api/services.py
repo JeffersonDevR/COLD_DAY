@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func
+from sqlalchemy import func, String
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -7,10 +7,12 @@ from app.api.deps import get_current_user, require_roles
 from app.core.database import get_db
 from app.models.service import (
     Equipment,
+    EquipmentCategory,
     ServiceAgreement,
     ServiceRequest,
     Technician,
     TechnicianBid,
+    TechnicianService,
 )
 from app.models.user import User
 from app.schemas.service import (
@@ -43,6 +45,7 @@ async def find_technicians_nearby(
     longitude: float,
     radius_km: float = 5.0,
     specialty: str | None = None,
+    service_type: str | None = None,
     min_rating: float | None = Query(default=None, ge=0, le=5),
     db: AsyncSession = Depends(get_db),
 ):
@@ -56,12 +59,20 @@ async def find_technicians_nearby(
 
     query = (
         select(Technician, distance.label("distance_deg"))
+        .options(
+            selectinload(Technician.services).selectinload(TechnicianService.category)
+        )
         .where(func.ST_DWithin(Technician.location, point, radius_km / 111.0))
         .where(Technician.verification_status == "verified")
         .where(Technician.availability == "free")
     )
-    if specialty:
-        query = query.where(Technician.specialty.ilike(f"%{specialty}%"))
+    if specialty or service_type:
+        query = query.join(Technician.services).join(EquipmentCategory)
+        if specialty:
+            query = query.where(EquipmentCategory.name.ilike(f"%{specialty}%"))
+        if service_type:
+            query = query.where(func.cast(TechnicianService.service_types, String).ilike(f"%{service_type}%"))
+
     if min_rating is not None:
         query = query.where(Technician.rating >= min_rating)
     query = query.order_by(distance, Technician.rating.desc())
@@ -69,9 +80,16 @@ async def find_technicians_nearby(
     result = await db.execute(query)
     technicians = []
 
-    for tech, distance_deg in result.all():
-        # 1 grado aprox = 111 km (promedio), suficiente para el MVP
+    for tech, distance_deg in result.unique().all():
         distance_km = round(float(distance_deg) * 111.0, 2)
+        offered_services = []
+        for svc in tech.services:
+            if svc.active:
+                offered_services.append({
+                    "category": svc.category.name if svc.category else None,
+                    "service_types": svc.service_types,
+                    "sector": svc.sector
+                })
         technicians.append(
             {
                 "id": tech.id,
@@ -79,6 +97,7 @@ async def find_technicians_nearby(
                 "rating": tech.rating,
                 "specialty": tech.specialty,
                 "distance_km": distance_km,
+                "services": offered_services
             }
         )
 
@@ -119,9 +138,10 @@ async def create_service_request(
     db: AsyncSession = Depends(get_db),
 ):
     # Validar que el equipo exista (RF-SR-011): el raise real -> 404, no 500.
-    eq = await db.get(Equipment, payload.equipment_id)
-    if eq is None:
-        raise HTTPException(status_code=404, detail="Equipment not found")
+    if payload.equipment_id is not None:
+        eq = await db.get(Equipment, payload.equipment_id)
+        if eq is None:
+            raise HTTPException(status_code=404, detail="Equipment not found")
 
     # Crear geometría PostGIS WKT POINT(longitude latitude)
     point_wkt = f"POINT({payload.longitude} {payload.latitude})"
@@ -129,6 +149,7 @@ async def create_service_request(
     service_request = ServiceRequest(
         user_id=user.id,
         equipment_id=payload.equipment_id,
+        category_hint=payload.category_hint,
         service_type=payload.service_type,
         description=payload.description,
         location=point_wkt,

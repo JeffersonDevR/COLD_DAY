@@ -1,6 +1,7 @@
 from geoalchemy2 import Geometry
 from sqlalchemy import (
     JSON,
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -9,6 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
     text,
 )
@@ -79,7 +81,8 @@ class ServiceRequest(Base):
     # FK real a users.id (design §Delta modelos): el dueño sale del token, nunca
     # del payload. La constraint física llega con Alembic (S6, RF-PILOT-001).
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    equipment_id = Column(Integer, ForeignKey("equipments.id"), nullable=False)
+    equipment_id = Column(Integer, ForeignKey("equipments.id"), nullable=True)
+    category_hint = Column(String, nullable=True)
     service_type = Column(
         String(50), nullable=False
     )  # "installation", "maintenance", "repair"
@@ -133,6 +136,8 @@ class Technician(Base):
     )  # pending, verified, rejected
     rejection_reason = Column(Text, nullable=True)
     availability = Column(String(10), nullable=False, default="free")  # free, busy
+
+    services = relationship('TechnicianService', back_populates='technician')
 
 
 class TechnicianBid(Base):
@@ -230,3 +235,29 @@ class Review(Base):
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class TechnicianService(Base):
+    __tablename__ = 'technician_services'
+    id = Column(Integer, primary_key=True)
+    technician_id = Column(Integer, ForeignKey('technicians.id', ondelete='CASCADE'), nullable=False)
+    category_id = Column(Integer, ForeignKey('equipment_categories.id', ondelete='CASCADE'), nullable=False)
+    service_types = Column(JSON, nullable=False, default=['repair'])  # ["repair","maintenance","installation"]
+    sector = Column(String, nullable=False, default='both')  # residential, industrial, both
+    active = Column(Boolean, nullable=False, default=True)
+    
+    technician = relationship('Technician', back_populates='services')
+    category = relationship('EquipmentCategory')
+    
+    __table_args__ = (
+        UniqueConstraint('technician_id', 'category_id', name='uq_tech_category'),
+    )
+
+
+class LocationUpdate(Base):
+    __tablename__ = 'location_updates'
+    id = Column(Integer, primary_key=True)
+    service_request_id = Column(Integer, ForeignKey('service_requests.id', ondelete='CASCADE'), nullable=False)
+    technician_id = Column(Integer, ForeignKey('technicians.id', ondelete='CASCADE'), nullable=False)
+    location = Column(Geometry('POINT', srid=4326), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())

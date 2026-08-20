@@ -173,27 +173,32 @@ class ApiClient {
   // ===== Solicitudes / bids =====
 
   static Future<Map<String, dynamic>> createServiceRequest({
-    required int equipmentId,
+    int? equipmentId,
     required String serviceType,
     required String description,
     required double latitude,
     required double longitude,
     double? budgetOffered,
+    String? categoryHint,
   }) async {
     // RF-SR-001: el dueño sale del token autenticado; el payload NO lleva user_id.
     final url = Uri.parse("$baseUrl/services/");
+    
+    final body = <String, dynamic>{
+      "service_type": serviceType,
+      "description": description,
+      "latitude": latitude,
+      "longitude": longitude,
+    };
+    if (budgetOffered != null) body["budget_offered"] = budgetOffered;
+    if (equipmentId != null) body["equipment_id"] = equipmentId;
+    if (categoryHint != null) body["category_hint"] = categoryHint;
+    
     final response = await _client
         .post(
           url,
           headers: await _authedHeaders(),
-          body: jsonEncode({
-            "equipment_id": equipmentId,
-            "service_type": serviceType,
-            "description": description,
-            "latitude": latitude,
-            "longitude": longitude,
-            "budget_offered": budgetOffered,
-          }),
+          body: jsonEncode(body),
         )
         .timeout(_timeout);
 
@@ -439,13 +444,16 @@ class ApiClient {
     required double latitude,
     required double longitude,
     double radiusKm = 5.0,
+    String? specialty,
+    String? serviceType,
   }) async {
     // RF-MATCH-006: endpoint REAL del radar del técnico
     // (/api/services/technicians-nearby/, no el /api/services/nearby inexistente).
-    final url = Uri.parse(
-      "$baseUrl/services/technicians-nearby/"
-      "?latitude=$latitude&longitude=$longitude&radius_km=$radiusKm",
-    );
+    var urlStr = "$baseUrl/services/technicians-nearby/?latitude=$latitude&longitude=$longitude&radius_km=$radiusKm";
+    if (specialty != null) urlStr += "&specialty=${Uri.encodeComponent(specialty)}";
+    if (serviceType != null) urlStr += "&service_type=${Uri.encodeComponent(serviceType)}";
+
+    final url = Uri.parse(urlStr);
     final response = await _client.get(url).timeout(_timeout);
 
     if (response.statusCode == 200) {
@@ -477,6 +485,70 @@ class ApiClient {
     } else {
       throw Exception("Error al buscar técnicos: ${response.body}");
     }
+  }
+
+  // Technician services management
+  static Future<List<Map<String, dynamic>>> fetchMyServices() async {
+    final url = Uri.parse("$baseUrl/technicians/me/services");
+    final response = await _client.get(url, headers: await _authedHeaders()).timeout(_timeout);
+    final body = await _decodeOrThrow(response, "Error al cargar servicios");
+    final services = body['services'] as List<dynamic>? ?? [];
+    return services.map((item) => item as Map<String, dynamic>).toList();
+  }
+
+  static Future<Map<String, dynamic>> addMyService({
+    required int categoryId,
+    required List<String> serviceTypes,
+    required String sector,
+  }) async {
+    final url = Uri.parse("$baseUrl/technicians/me/services");
+    return _postAuthed(
+      url,
+      {
+        "category_id": categoryId,
+        "service_types": serviceTypes,
+        "sector": sector,
+      },
+      "agregar servicio",
+    );
+  }
+
+  static Future<void> removeMyService(int serviceId) async {
+    final url = Uri.parse("$baseUrl/technicians/me/services/$serviceId");
+    final response = await _client
+        .delete(url, headers: await _authedHeaders())
+        .timeout(_timeout);
+    await _decodeOrThrow(response, "Error al eliminar servicio");
+  }
+
+  // Tracking
+  static Future<void> sendLocation({
+    required int requestId,
+    required double latitude,
+    required double longitude,
+  }) async {
+    final url = Uri.parse("$baseUrl/tracking/$requestId/location");
+    final response = await _client
+        .post(
+          url,
+          headers: await _authedHeaders(),
+          body: jsonEncode({
+            "latitude": latitude,
+            "longitude": longitude,
+          }),
+        )
+        .timeout(_timeout);
+    await _decodeOrThrow(response, "Error al enviar ubicación");
+  }
+
+  static Future<Map<String, dynamic>?> fetchTechnicianLocation(int requestId) async {
+    final url = Uri.parse("$baseUrl/tracking/$requestId/location");
+    final response = await _client
+        .get(url, headers: await _authedHeaders())
+        .timeout(_timeout);
+    
+    if (response.statusCode == 404) return null;
+    return _decodeOrThrow(response, "Error al obtener ubicación del técnico");
   }
 
   /// Catálogo data-driven: categoría -> sector -> equipos -> precios.

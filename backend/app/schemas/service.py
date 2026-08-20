@@ -3,14 +3,13 @@ from pydantic import BaseModel, Field
 
 class ServiceRequestCreate(BaseModel):
     # Sin user_id: el dueño sale del token autenticado (RF-SR-001, auth PR1).
-    equipment_id: int
-    service_type: str = Field(
-        ..., example="installation"
-    )  # installation, maintenance, repair
+    equipment_id: int | None = None
+    category_hint: str | None = None
+    service_type: str = "repair"  # installation, maintenance, repair
     description: str
-    latitude: float = Field(..., example=7.8939)
-    longitude: float = Field(..., example=-72.5078)
-    budget_offered: float | None = Field(None, example=80000.0)
+    latitude: float
+    longitude: float
+    budget_offered: float | None = None
 
 
 class TechnicianBidCreate(BaseModel):
@@ -53,3 +52,21 @@ class ReviewCreate(BaseModel):
     quality: int = Field(..., ge=1, le=5)
     professionalism: int = Field(..., ge=1, le=5)
     comment: str | None = Field(None, max_length=1000)
+
+
+class TechnicianServiceCreate(BaseModel):
+    category_id: int
+    service_types: list[str] = ['repair']
+    sector: str = 'both'
+
+class TechnicianServiceOut(BaseModel):
+    id: int
+    category_id: int
+    category_name: str | None = None
+    service_types: list[str]
+    sector: str
+    active: bool
+
+class LocationUpdateCreate(BaseModel):
+    latitude: float
+    longitude: float
