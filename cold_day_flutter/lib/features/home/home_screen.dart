@@ -4,251 +4,251 @@ import 'package:cold_day_flutter/features/auth/register_client_screen.dart';
 import 'package:cold_day_flutter/features/auth/register_technician_screen.dart';
 import 'package:cold_day_flutter/features/pqr/pqr_screen.dart';
 
+// ─── Design tokens ─────────────────────────────────────────────────────────
+const _bg = Color(0xFF080F1E);
+const _accent = Color(0xFF5BC8F5);
+const _textPrimary = Colors.white;
+const _textMuted = Color(0xFF6B7FA3);
+const _surface = Color(0xFF111928);
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B3E),
+      backgroundColor: _bg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo
-              Container(
-                height: 110,
-                alignment: Alignment.center,
-                child: Image.asset(
-                  'assets/images/logo.png',
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.ac_unit,
-                    size: 80,
-                    color: Colors.blueAccent,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Cold Day',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Multi servicios técnicos',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 15, color: Color(0xFF90CAF9)),
-              ),
-              const SizedBox(height: 2),
-              const Text(
-                'Conectamos soluciones, generamos confianza.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF90CAF9),
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 48),
 
-              // Opción 1: Solicitar un servicio
-              _HomeOptionCard(
-                icon: Icons.build_circle_outlined,
-                title: 'Solicitar un servicio',
-                subtitle: 'Pedí un técnico para tu equipo',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const LoginScreen(),
+              // ── Brand ──────────────────────────────────────────────────
+              Row(
+                children: [
+                  const Icon(Icons.ac_unit, color: _accent, size: 28),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Cold Day',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: _textPrimary,
+                      letterSpacing: -0.5,
                     ),
-                  );
-                },
-              ),
-              // Registro real de cliente (RF-LAND-002) — reemplaza el SnackBar
-              // "próximamente": navega al formulario de registro, no a un dead-end.
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const RegisterClientScreen(),
-                      ),
-                    );
-                  },
-                  child: const Text(
-                    'Regístrate como cliente',
-                    style: TextStyle(color: Color(0xFF90CAF9)),
                   ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Técnicos certificados,\na un toque de distancia.',
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
+                  color: _textPrimary,
+                  height: 1.2,
+                  letterSpacing: -0.8,
                 ),
               ),
               const SizedBox(height: 8),
-
-              // Opción 2: Soy un técnico
-              _HomeOptionCard(
-                icon: Icons.handyman_outlined,
-                title: 'Soy un técnico',
-                subtitle: 'Ofrecé tus servicios y recibí solicitudes',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const LoginScreen(
-                        mode: LoginMode.technician,
-                      ),
-                    ),
-                  );
-                },
+              const Text(
+                'Refrigeración · A/C · Electricidad · Electrodomésticos',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: _textMuted,
+                  letterSpacing: 0.1,
+                ),
               ),
-              // Registro real de técnico (RF-LAND-003)
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
+
+              const SizedBox(height: 48),
+
+              // ── Primary actions ────────────────────────────────────────
+              _RoleCard(
+                icon: Icons.build_rounded,
+                label: 'Necesito un técnico',
+                sublabel: 'Solicitar servicio',
+                onLogin: () => Navigator.push(
+                  context,
+                  _fade(const LoginScreen()),
+                ),
+                onRegister: () => Navigator.push(
+                  context,
+                  _fade(const RegisterClientScreen()),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _RoleCard(
+                icon: Icons.handyman_rounded,
+                label: 'Soy técnico',
+                sublabel: 'Ofrecer servicios',
+                onLogin: () => Navigator.push(
+                  context,
+                  _fade(const LoginScreen(mode: LoginMode.technician)),
+                ),
+                onRegister: () => Navigator.push(
+                  context,
+                  _fade(const RegisterTechnicianScreen()),
+                ),
+              ),
+
+              const Spacer(),
+
+              // ── Secondary row ──────────────────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _GhostButton(
+                    icon: Icons.support_agent_outlined,
+                    label: 'PQR',
+                    onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => const RegisterTechnicianScreen(),
-                      ),
-                    );
-                  },
-                  child: const Text(
-                    'Regístrate como técnico',
-                    style: TextStyle(color: Color(0xFF90CAF9)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // PQR
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.amber.shade300,
-                  side: BorderSide(color: Colors.amber.shade300),
-                  minimumSize: const Size.fromHeight(50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PqrScreen(),
+                      _fade(const PqrScreen()),
                     ),
-                  );
-                },
-                icon: const Icon(Icons.support_agent),
-                label: const Text(
-                  'PQR · Quejas y reclamos',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Acceso de administrador (discreto, no prominente)
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const LoginScreen(
-                        mode: LoginMode.admin,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(
-                  Icons.admin_panel_settings_outlined,
-                  size: 18,
-                  color: Color(0xFF546E7A),
-                ),
-                label: const Text(
-                  'Acceso administrador',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF546E7A),
                   ),
-                ),
+                  _GhostButton(
+                    icon: Icons.shield_outlined,
+                    label: 'Admin',
+                    onTap: () => Navigator.push(
+                      context,
+                      _fade(const LoginScreen(mode: LoginMode.admin)),
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 28),
             ],
           ),
         ),
       ),
     );
   }
+
+  PageRouteBuilder<T> _fade<T>(Widget page) => PageRouteBuilder(
+        pageBuilder: (context, animation, _) => page,
+        transitionsBuilder: (context, anim, _, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 180),
+      );
 }
 
-class _HomeOptionCard extends StatelessWidget {
+// ─── Role card ──────────────────────────────────────────────────────────────
+class _RoleCard extends StatelessWidget {
   final IconData icon;
-  final String title;
-  final String subtitle;
+  final String label;
+  final String sublabel;
+  final VoidCallback onLogin;
+  final VoidCallback onRegister;
+
+  const _RoleCard({
+    required this.icon,
+    required this.label,
+    required this.sublabel,
+    required this.onLogin,
+    required this.onRegister,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 8, 18),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: _accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: _accent, size: 22),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _textPrimary,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    sublabel,
+                    style: const TextStyle(fontSize: 12, color: _textMuted),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              children: [
+                TextButton(
+                  onPressed: onLogin,
+                  style: TextButton.styleFrom(
+                    foregroundColor: _accent,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('Entrar', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ),
+                TextButton(
+                  onPressed: onRegister,
+                  style: TextButton.styleFrom(
+                    foregroundColor: _textMuted,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('Registro', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Ghost button ────────────────────────────────────────────────────────────
+class _GhostButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
   final VoidCallback onTap;
 
-  const _HomeOptionCard({
+  const _GhostButton({
     required this.icon,
-    required this.title,
-    required this.subtitle,
+    required this.label,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-          child: Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: Colors.blueAccent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, size: 28, color: Colors.blueAccent),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0D1B3E),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.blueGrey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Colors.blueGrey),
-            ],
-          ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: _textMuted),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(fontSize: 13, color: _textMuted)),
+          ],
         ),
       ),
     );

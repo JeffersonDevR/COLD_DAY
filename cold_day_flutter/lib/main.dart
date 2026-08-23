@@ -15,8 +15,17 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Cold Day ❄️',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF080F1E),
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF5BC8F5),
+          onPrimary: Color(0xFF080F1E),
+          surface: Color(0xFF111928),
+          onSurface: Colors.white,
+        ),
         useMaterial3: true,
+        splashColor: Colors.transparent,
+        highlightColor: Colors.white10,
       ),
       home: const AuthGate(),
       debugShowCheckedModeBanner: false,

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-
 import 'package:cold_day_flutter/core/network/api_client.dart';
 
-/// Registro de cliente (RF-LAND-002, RF-AUTH-001): nombre completo, documento
-/// (CC único), teléfono y contraseña. Al registrarse, vuelve al login para
-/// ingresar con el documento.
+// ─── Design tokens ─────────────────────────────────────────────────────────
+const _bg = Color(0xFF080F1E);
+const _accent = Color(0xFF5BC8F5);
+const _textPrimary = Colors.white;
+const _textMuted = Color(0xFF6B7FA3);
+const _surface = Color(0xFF111928);
+const _errorColor = Color(0xFFFF6B6B);
+
 class RegisterClientScreen extends StatefulWidget {
   const RegisterClientScreen({super.key});
 
@@ -32,10 +36,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
       return;
     }
 
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() { _loading = true; _error = null; });
 
     try {
       await ApiClient.registerClient(
@@ -46,9 +47,14 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registro exitoso. Ya podés iniciar sesión.')),
+        SnackBar(
+          content: const Text('Registro exitoso. Ya podés iniciar sesión.'),
+          backgroundColor: _accent.withValues(alpha: 0.15),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       );
-      Navigator.pop(context); // volver al login
+      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = _friendlyError(e));
@@ -60,158 +66,214 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
   String _friendlyError(Object e) {
     final msg = e.toString();
     if (msg.contains('409')) {
-      return 'No se pudo completar el registro. Verificá los datos e intentá de nuevo.';
+      return 'Ese documento ya está registrado. Intentá iniciar sesión.';
     }
     if (msg.contains('422')) {
-      return 'La contraseña debe tener al menos 8 caracteres con mayúscula, '
-          'minúscula y dígito.';
+      return 'La contraseña debe tener mín. 8 caracteres, mayúscula, minúscula y dígito.';
     }
-    return 'No se pudo completar el registro. Verificá tu conexión e intentá de nuevo.';
+    return 'No se pudo completar el registro. Verificá tu conexión.';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B3E),
-      appBar: AppBar(
-        title: const Text('Registro de cliente'),
-        backgroundColor: const Color(0xFF0A1632),
-        foregroundColor: Colors.white,
-        centerTitle: true,
-      ),
+      backgroundColor: _bg,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Card(
-                  elevation: 0,
-                  color: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        TextField(
-                          key: const Key('register_client_full_name'),
-                          controller: _fullNameController,
-                          decoration: _inputDecoration(
-                            'Nombre completo',
-                            Icons.person_outline,
-                          ),
-                        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => Navigator.maybePop(context),
+                child: const Icon(Icons.arrow_back, color: _textMuted, size: 22),
+              ),
+              const Spacer(flex: 1),
+
+              // ── Headline ───────────────────────────────────────────────
+              const Text(
+                'Crear cuenta',
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
+                  color: _textPrimary,
+                  letterSpacing: -0.8,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Como cliente',
+                style: TextStyle(fontSize: 15, color: _textMuted),
+              ),
+              const SizedBox(height: 32),
+
+              // ── Form ───────────────────────────────────────────────────
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _Field(
+                        controller: _fullNameController,
+                        label: 'Nombre completo',
+                        testKey: 'register_client_full_name',
+                      ),
+                      const SizedBox(height: 12),
+                      _Field(
+                        controller: _documentController,
+                        label: 'Documento (CC)',
+                        testKey: 'register_client_document',
+                        keyboardType: TextInputType.number,
+                        hint: 'Ej. 1123456789',
+                      ),
+                      const SizedBox(height: 12),
+                      _Field(
+                        controller: _phoneController,
+                        label: 'Teléfono',
+                        testKey: 'register_client_phone',
+                        keyboardType: TextInputType.phone,
+                        hint: 'Ej. 3001234567',
+                      ),
+                      const SizedBox(height: 12),
+                      _Field(
+                        controller: _passwordController,
+                        label: 'Contraseña',
+                        testKey: 'register_client_password',
+                        obscure: _obscurePassword,
+                        hint: 'Mín. 8 car., mayúscula, minúscula y dígito',
+                        onToggleObscure: () =>
+                            setState(() => _obscurePassword = !_obscurePassword),
+                      ),
+
+                      if (_error != null) ...[
                         const SizedBox(height: 14),
-                        TextField(
-                          key: const Key('register_client_document'),
-                          controller: _documentController,
-                          keyboardType: TextInputType.number,
-                          decoration: _inputDecoration(
-                            'Documento (CC)',
-                            Icons.badge_outlined,
-                            hint: 'Ej. 1123456789',
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        TextField(
-                          key: const Key('register_client_phone'),
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          decoration: _inputDecoration(
-                            'Teléfono',
-                            Icons.phone_outlined,
-                            hint: 'Ej. 3001234567',
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        TextField(
-                          key: const Key('register_client_password'),
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          decoration: _inputDecoration(
-                            'Contraseña',
-                            Icons.lock_outline,
-                            hint: 'Mín. 8 caracteres, mayúscula, minúscula y dígito',
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                              ),
-                              onPressed: () => setState(
-                                  () => _obscurePassword = !_obscurePassword),
-                            ),
-                          ),
-                        ),
-                        if (_error != null) ...[
-                          const SizedBox(height: 14),
-                          Text(
-                            _error!,
-                            style: const TextStyle(color: Color(0xFFB71C1C)),
-                          ),
-                        ],
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          height: 52,
-                          child: FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.blueAccent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                        Row(
+                          children: [
+                            const Icon(Icons.info_outline, size: 15, color: _errorColor),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                _error!,
+                                style: const TextStyle(fontSize: 13, color: _errorColor),
                               ),
                             ),
-                            onPressed: _loading ? null : _register,
-                            icon: _loading
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.person_add_alt),
-                            label: const Text(
-                              'Registrarme',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
+                          ],
                         ),
                       ],
-                    ),
+
+                      const SizedBox(height: 24),
+                      _PrimaryButton(
+                        label: 'Registrarme',
+                        loading: _loading,
+                        onTap: _register,
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+}
 
-  InputDecoration _inputDecoration(
-    String label,
-    IconData icon, {
-    String? hint,
-    Widget? suffixIcon,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      prefixIcon: Icon(icon),
-      suffixIcon: suffixIcon,
-      filled: true,
-      fillColor: const Color(0xFFF3F6FB),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+// ─── Shared field ─────────────────────────────────────────────────────────────
+class _Field extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String testKey;
+  final bool obscure;
+  final String? hint;
+  final TextInputType keyboardType;
+  final VoidCallback? onToggleObscure;
+
+  const _Field({
+    required this.controller,
+    required this.label,
+    required this.testKey,
+    this.obscure = false,
+    this.hint,
+    this.keyboardType = TextInputType.text,
+    this.onToggleObscure,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      key: Key(testKey),
+      controller: controller,
+      obscureText: obscure,
+      keyboardType: keyboardType,
+      style: const TextStyle(color: _textPrimary, fontSize: 15),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: const TextStyle(color: _textMuted, fontSize: 14),
+        hintStyle: const TextStyle(color: _textMuted, fontSize: 13),
+        filled: true,
+        fillColor: _surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _accent, width: 1.5),
+        ),
+        suffixIcon: onToggleObscure != null
+            ? IconButton(
+                icon: Icon(
+                  obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  size: 18,
+                  color: _textMuted,
+                ),
+                onPressed: onToggleObscure,
+              )
+            : null,
+      ),
+    );
+  }
+}
+
+// ─── Primary button ───────────────────────────────────────────────────────────
+class _PrimaryButton extends StatelessWidget {
+  final String label;
+  final bool loading;
+  final VoidCallback onTap;
+
+  const _PrimaryButton({
+    required this.label,
+    required this.loading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: _accent,
+          foregroundColor: const Color(0xFF080F1E),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+        onPressed: loading ? null : onTap,
+        child: loading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFF080F1E),
+                ),
+              )
+            : Text(label),
       ),
     );
   }
