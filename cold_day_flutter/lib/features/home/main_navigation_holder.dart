@@ -4,6 +4,7 @@ import 'package:cold_day_flutter/features/request/simple_request_screen.dart';
 import 'package:cold_day_flutter/features/request/client_history_screen.dart';
 import 'package:cold_day_flutter/features/profile/profile_screen.dart';
 import 'package:cold_day_flutter/features/technician/technician_dashboard.dart';
+import 'package:cold_day_flutter/features/radar/technician_map_screen.dart';
 
 class MainNavigationHolder extends StatefulWidget {
   final String role;
@@ -27,8 +28,8 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
         ];
       case 'technician':
         return [
-          TechnicianDashboard(), // Home/List and real request radar
-          TechnicianDashboard(), // Radar, backed by /technicians/requests/nearby/
+          const TechnicianDashboard(),
+          const TechnicianMapScreen(),
           const ProfileScreen(),
         ];
       case 'admin':

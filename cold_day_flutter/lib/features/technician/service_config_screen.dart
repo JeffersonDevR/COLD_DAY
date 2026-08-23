@@ -46,9 +46,17 @@ class _ServiceConfigScreenState extends State<ServiceConfigScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Future<void> _addService(int categoryId, List<String> types, String sector) async {
+  Future<void> _addService(
+    int categoryId,
+    List<String> types,
+    String sector,
+  ) async {
     try {
-      await ApiClient.addMyService(categoryId: categoryId, serviceTypes: types, sector: sector);
+      await ApiClient.addMyService(
+        categoryId: categoryId,
+        serviceTypes: types,
+        sector: sector,
+      );
       _showMessage('Servicio agregado');
       _loadData();
     } catch (e) {
@@ -69,74 +77,92 @@ class _ServiceConfigScreenState extends State<ServiceConfigScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mis servicios'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: const Text('Mis servicios')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _catalog.length,
-                  itemBuilder: (context, index) {
-                    final cat = _catalog[index];
-                    final catId = cat['id'] as int;
-                    
-                    // Check if already configured
-                    final existing = _myServices.where((s) => s['category_id'] == catId).toList();
-                    final isEnabled = existing.isNotEmpty;
+          ? Center(child: Text(_error!))
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _catalog.length,
+              itemBuilder: (context, index) {
+                final cat = _catalog[index];
+                final catId = cat['id'] as int;
 
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                // Check if already configured
+                final existing = _myServices
+                    .where((s) => s['category_id'] == catId)
+                    .toList();
+                final isEnabled = existing.isNotEmpty;
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 12,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  cat['name'] as String,
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 240),
+                              child: Text(
+                                cat['name'] as String,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                Switch(
-                                  value: isEnabled,
-                                  onChanged: (val) {
-                                    if (val) {
-                                      // Default add
-                                      _addService(catId, ['repair'], 'residential');
-                                    } else {
-                                      for (var s in existing) {
-                                        _removeService(s['id'] as int);
-                                      }
-                                    }
-                                  },
-                                ),
-                              ],
+                              ),
                             ),
-                            if (isEnabled) ...[
-                              const SizedBox(height: 8),
-                              const Text('Configurado como:', style: TextStyle(color: Colors.grey)),
-                              ...existing.map((s) => ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: Text('Sector: ${s['sector']}'),
-                                subtitle: Text('Tipos: ${(s['service_types'] as List).join(', ')}'),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  onPressed: () => _removeService(s['id'] as int),
-                                ),
-                              )),
-                            ]
+                            Switch(
+                              value: isEnabled,
+                              onChanged: (val) {
+                                if (val) {
+                                  // Default add
+                                  _addService(catId, ['repair'], 'residential');
+                                } else {
+                                  for (var s in existing) {
+                                    _removeService(s['id'] as int);
+                                  }
+                                }
+                              },
+                            ),
                           ],
                         ),
-                      ),
-                    );
-                  },
-                ),
+                        if (isEnabled) ...[
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Configurado como:',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          ...existing.map(
+                            (s) => ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text('Sector: ${s['sector']}'),
+                              subtitle: Text(
+                                'Tipos: ${(s['service_types'] as List).join(', ')}',
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () => _removeService(s['id'] as int),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }

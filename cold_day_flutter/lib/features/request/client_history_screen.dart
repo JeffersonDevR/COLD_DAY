@@ -3,6 +3,7 @@ import 'package:cold_day_flutter/core/network/api_client.dart';
 import 'package:cold_day_flutter/features/ratings/rating_screen.dart';
 import 'package:cold_day_flutter/features/request/pact_review_dialog.dart';
 import 'package:cold_day_flutter/features/request/request_status.dart';
+import 'package:cold_day_flutter/features/tracking/tracking_screen.dart';
 
 /// Historial del cliente (RF-SR-010, HU-SR-001/003): listado propio desde
 /// GET /api/services/my; el detalle muestra la línea de tiempo (bids + pactos)
@@ -10,7 +11,7 @@ import 'package:cold_day_flutter/features/request/request_status.dart';
 /// (PactReviewDialog) y cancelar la solicitud.
 class ClientHistoryScreen extends StatefulWidget {
   final bool? filterActive;
-  
+
   const ClientHistoryScreen({super.key, this.filterActive});
 
   @override
@@ -35,17 +36,26 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
     });
     try {
       var requests = await ApiClient.fetchMyRequests();
-      
+
       // Aplicar filtro si se especifica
       if (widget.filterActive != null) {
-        final activeStates = ['requested', 'bidding', 'accepted', 'in_progress'];
+        final activeStates = [
+          'requested',
+          'bidding',
+          'accepted',
+          'in_progress',
+        ];
         if (widget.filterActive == true) {
-          requests = requests.where((r) => activeStates.contains(r['status'])).toList();
+          requests = requests
+              .where((r) => activeStates.contains(r['status']))
+              .toList();
         } else {
-          requests = requests.where((r) => !activeStates.contains(r['status'])).toList();
+          requests = requests
+              .where((r) => !activeStates.contains(r['status']))
+              .toList();
         }
       }
-      
+
       if (!mounted) return;
       setState(() => _requests = requests);
     } catch (e) {
@@ -80,19 +90,19 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: widget.filterActive != null ? null : AppBar(
-        title: const Text('Mi Historial'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            onPressed: _loading ? null : _loadHistory,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Actualizar historial',
-          ),
-        ],
-      ),
+      appBar: widget.filterActive != null
+          ? null
+          : AppBar(
+              title: const Text('Mi Historial'),
+              centerTitle: true,
+              actions: [
+                IconButton(
+                  onPressed: _loading ? null : _loadHistory,
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Actualizar historial',
+                ),
+              ],
+            ),
       body: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).scaffoldBackgroundColor,
@@ -175,7 +185,9 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: () => _openDetail(req),
@@ -184,9 +196,14 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
                     children: [
-                      Expanded(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 260),
                         child: Text(
                           req['equipment'] as String? ?? 'Solicitud',
                           maxLines: 1,
@@ -212,19 +229,29 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
                     ),
                   ],
                   const SizedBox(height: 8),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
                     children: [
-                      const Icon(Icons.calendar_today,
-                          size: 14, color: Colors.grey),
+                      const Icon(
+                        Icons.calendar_today,
+                        size: 14,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         formatRequestDate(req['created_at'] as String?),
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
-                      const Spacer(),
                       if (technician != null) ...[
-                        const Icon(Icons.engineering,
-                            size: 14, color: Colors.blueGrey),
+                        const Icon(
+                          Icons.engineering,
+                          size: 14,
+                          color: Colors.blueGrey,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           technician['name'] as String? ?? '',
@@ -278,7 +305,9 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
       _error = null;
     });
     try {
-      final detail = await ApiClient.fetchServiceRequestDetail(widget.requestId);
+      final detail = await ApiClient.fetchServiceRequestDetail(
+        widget.requestId,
+      );
       if (!mounted) return;
       setState(() => _detail = detail);
     } catch (e) {
@@ -308,10 +337,7 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
   }
 
   Future<void> _reviewPact(Map<String, dynamic> pact) async {
-    final decision = await PactReviewDialog.show(
-      context,
-      agreement: pact,
-    );
+    final decision = await PactReviewDialog.show(context, agreement: pact);
     if (decision == null || !mounted) return;
 
     try {
@@ -382,13 +408,31 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
     }
   }
 
+  void _openTracking() {
+    final detail = _detail!;
+    final latitude = (detail['latitude'] as num?)?.toDouble();
+    final longitude = (detail['longitude'] as num?)?.toDouble();
+    if (latitude == null || longitude == null) {
+      _showMessage('La ubicación del servicio no está disponible.');
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TrackingScreen(
+          requestId: widget.requestId,
+          clientLat: latitude,
+          clientLon: longitude,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Solicitud #${widget.requestId}'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
         centerTitle: true,
       ),
       body: Container(
@@ -406,7 +450,9 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: Colors.blueAccent));
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.blueAccent),
+      );
     }
 
     if (_error != null) {
@@ -488,13 +534,15 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
                 ),
                 // RF-SR-004/005: las observaciones del diagnóstico son parte
                 // del vertical del pacto y quedan visibles en el detalle.
-                if ((detail['diagnosis_observations'] as String?)
-                        ?.isNotEmpty ??
+                if ((detail['diagnosis_observations'] as String?)?.isNotEmpty ??
                     false) ...[
                   const SizedBox(height: 6),
                   Text(
                     'Diagnóstico: ${detail['diagnosis_observations']}',
-                    style: const TextStyle(fontSize: 13, color: Colors.blueGrey),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.blueGrey,
+                    ),
                   ),
                 ],
                 if (technician != null) ...[
@@ -517,6 +565,17 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
         ),
 
         // ===== Acciones según estado =====
+        if (status == 'in_progress') ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _openTracking,
+              icon: const Icon(Icons.location_on),
+              label: const Text('Ver ubicación del técnico'),
+            ),
+          ),
+        ],
         if (status == 'requested' || status == 'bidding') ...[
           const SizedBox(height: 8),
           SizedBox(
@@ -563,12 +622,17 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
         ),
         const SizedBox(height: 8),
         if (bids.isEmpty)
-          const Text('Sin ofertas todavía', style: TextStyle(color: Colors.grey)),
-        ...bids.map((bid) => _BidTile(
-              bid: bid,
-              showAccept: status == 'bidding' && bid['status'] == 'pending',
-              onAccept: () => _acceptBid(bid),
-            )),
+          const Text(
+            'Sin ofertas todavía',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ...bids.map(
+          (bid) => _BidTile(
+            bid: bid,
+            showAccept: status == 'bidding' && bid['status'] == 'pending',
+            onAccept: () => _acceptBid(bid),
+          ),
+        ),
 
         // ===== Línea de tiempo: pactos =====
         const SizedBox(height: 16),
@@ -578,12 +642,18 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
         ),
         const SizedBox(height: 8),
         if (pacts.isEmpty)
-          const Text('Sin pactos todavía', style: TextStyle(color: Colors.grey)),
-        ...pacts.map((pact) => _PactTile(
-              pact: pact,
-              showReview: status == 'pact_proposed' && pact['status'] == 'proposed',
-              onReview: () => _reviewPact(pact),
-            )),
+          const Text(
+            'Sin pactos todavía',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ...pacts.map(
+          (pact) => _PactTile(
+            pact: pact,
+            showReview:
+                status == 'pact_proposed' && pact['status'] == 'proposed',
+            onReview: () => _reviewPact(pact),
+          ),
+        ),
         const SizedBox(height: 24),
       ],
     );

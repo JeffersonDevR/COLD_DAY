@@ -132,7 +132,11 @@ async def my_service_requests(
     (RF-SR-012).
     """
     result = await db.execute(
-        select(ServiceRequest)
+        select(
+            ServiceRequest,
+            func.ST_Y(ServiceRequest.location).label("latitude"),
+            func.ST_X(ServiceRequest.location).label("longitude"),
+        )
         .options(
             selectinload(ServiceRequest.equipment),
             selectinload(ServiceRequest.assigned_technician),
@@ -411,15 +415,16 @@ async def get_service_request_detail(
         )
         .where(ServiceRequest.id == service_request_id)
     )
-    request = result.scalar_one_or_none()
-    if request is None:
+    row = result.one_or_none()
+    if row is None:
         raise HTTPException(status_code=404, detail="Service request not found")
+    request, latitude, longitude = row
 
     if not _can_view(request, user):
         raise HTTPException(status_code=404, detail="Service request not found")
 
     technician = request.assigned_technician
-    return _request_detail(request, technician)
+    return _request_detail(request, technician, latitude, longitude)
 
 
 def _can_view(request: ServiceRequest, user: User) -> bool:
@@ -456,7 +461,12 @@ def _request_summary(request: ServiceRequest) -> dict:
     }
 
 
-def _request_detail(request: ServiceRequest, technician: Technician | None) -> dict:
+def _request_detail(
+    request: ServiceRequest,
+    technician: Technician | None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+) -> dict:
     """Detalle completo con línea de tiempo (RF-SR-010)."""
     return {
         "id": request.id,
@@ -474,6 +484,8 @@ def _request_detail(request: ServiceRequest, technician: Technician | None) -> d
         ),
         "created_at": request.created_at.isoformat() if request.created_at else None,
         "budget_offered": request.budget_offered,
+        "latitude": float(latitude) if latitude is not None else None,
+        "longitude": float(longitude) if longitude is not None else None,
         "diagnosis_observations": request.diagnosis_observations,
         "technician": (
             {

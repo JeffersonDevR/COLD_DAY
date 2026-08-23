@@ -1,50 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+
 import 'package:cold_day_flutter/core/network/api_client.dart';
 
+/// Technician radar map. Requests are supplied by the authenticated backend
+/// endpoint, so markers always represent real nearby client requests.
 class TechnicianMapScreen extends StatefulWidget {
-  final int requestId;
-  final double latitude;
-  final double longitude;
-
-  const TechnicianMapScreen({
-    super.key,
-    required this.requestId,
-    required this.latitude,
-    required this.longitude,
-  });
+  const TechnicianMapScreen({super.key});
 
   @override
   State<TechnicianMapScreen> createState() => _TechnicianMapScreenState();
 }
 
 class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
-  List<Map<String, dynamic>> _technicians = [];
+  List<Map<String, dynamic>> _requests = [];
   bool _loading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadTechnicians();
+    _loadRequests();
   }
 
-  Future<void> _loadTechnicians() async {
+  Future<void> _loadRequests() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final technicians = await ApiClient.findNearbyTechnicians(
-        latitude: widget.latitude,
-        longitude: widget.longitude,
-      );
+      final requests = await ApiClient.fetchTechnicianRadar();
       if (!mounted) return;
-      setState(() => _technicians = technicians);
-    } catch (e) {
+      setState(() => _requests = requests);
+    } catch (error) {
       if (!mounted) return;
-      setState(() => _error = 'No se pudieron cargar los técnicos.');
+      setState(() => _error = 'No se pudo cargar el mapa: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -61,184 +52,154 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
     return number;
   }
 
-  void _showTechnicianDetails(Map<String, dynamic> tech) {
-    final rating = (tech['rating'] as num?)?.toDouble() ?? 5.0;
-    final name = tech['name'] as String? ?? 'Técnico';
-    final specialty = tech['specialty'] as String? ?? 'Técnico';
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.15),
-                  child: Icon(
-                    Icons.handyman,
-                    color: Theme.of(context).colorScheme.primary,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        specialty,
-                        style: TextStyle(
-                          color: Theme.of(context).hintColor,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 20),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$rating',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final valid = _requests.where((request) {
+      return _coordinate(request['latitude'], latitude: true) != null &&
+          _coordinate(request['longitude'], latitude: false) != null;
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Radar de Técnicos #${widget.requestId}'),
-        centerTitle: true,
+        title: const Text('Radar de solicitudes'),
+        actions: [
+          IconButton(
+            onPressed: _loading ? null : _loadRequests,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Actualizar radar',
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-          ? Center(child: Text(_error!))
-              : _technicians.isEmpty
-          ? const Center(child: Text('No se encontraron técnicos en tu área'))
-          : _technicians.every(
-                  (tech) =>
-                      _coordinate(tech['latitude'], latitude: true) != null &&
-                      _coordinate(tech['longitude'], latitude: false) != null,
-                )
-          ? FlutterMap(
-              options: MapOptions(
-                initialCenter: LatLng(widget.latitude, widget.longitude),
-                initialZoom: 14.0,
-              ),
+          ? _StateMessage(
+              icon: Icons.cloud_off,
+              message: _error!,
+              action: _loadRequests,
+            )
+          : valid.isEmpty
+          ? _StateMessage(
+              icon: _requests.isEmpty ? Icons.radar : Icons.location_off,
+              message: _requests.isEmpty
+                  ? 'No hay solicitudes cercanas'
+                  : 'No hay solicitudes con ubicación válida',
+              action: _loadRequests,
+            )
+          : Column(
               children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.coldday.app',
-                ),
-                MarkerLayer(
-                  markers: [
-                    // Client Marker (Icono de Casa/Usuario)
-                    Marker(
-                      point: LatLng(widget.latitude, widget.longitude),
-                      width: 45,
-                      height: 45,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.blue, width: 2),
-                        ),
-                        child: const Icon(
-                          Icons.home,
-                          color: Colors.blue,
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                    // Technician Markers (Iconos de llave/herramienta verdes)
-                    ..._technicians.map((tech) {
-                      final lat = _coordinate(
-                        tech['latitude'],
-                        latitude: true,
-                      )!;
-                      final lon = _coordinate(
-                        tech['longitude'],
-                        latitude: false,
-                      )!;
-                      return Marker(
-                        point: LatLng(lat, lon),
-                        width: 50,
-                        height: 50,
-                        child: GestureDetector(
-                          onTap: () => _showTechnicianDetails(tech),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.green, width: 2),
-                            ),
-                            child: const Icon(
-                              Icons.handyman,
-                              color: Colors.green,
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
+                Expanded(child: _buildMap(valid)),
+                Flexible(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: valid.length,
+                    itemBuilder: (_, index) =>
+                        _RequestTile(request: valid[index]),
+                  ),
                 ),
               ],
-            )
-          : const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.location_off, size: 56, color: Colors.grey),
-                    SizedBox(height: 12),
-                    Text(
-                      'No hay técnicos con ubicación válida',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'La ubicación se mostrará cuando esté disponible.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
             ),
     );
   }
+
+  Widget _buildMap(List<Map<String, dynamic>> requests) {
+    final first = requests.first;
+    final center = LatLng(
+      _coordinate(first['latitude'], latitude: true)!,
+      _coordinate(first['longitude'], latitude: false)!,
+    );
+    return FlutterMap(
+      options: MapOptions(initialCenter: center, initialZoom: 13),
+      children: [
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.coldday.app',
+        ),
+        MarkerLayer(
+          markers: requests.map((request) {
+            final point = LatLng(
+              _coordinate(request['latitude'], latitude: true)!,
+              _coordinate(request['longitude'], latitude: false)!,
+            );
+            return Marker(
+              point: point,
+              width: 48,
+              height: 48,
+              child: Tooltip(
+                message: 'Solicitud #${request['id']}',
+                child: Icon(
+                  Icons.location_on,
+                  size: 42,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _RequestTile extends StatelessWidget {
+  const _RequestTile({required this.request});
+
+  final Map<String, dynamic> request;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(child: Text('${request['id']}')),
+        title: Text(
+          request['equipment'] as String? ?? 'Solicitud',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          request['description'] as String? ?? '',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: const Icon(Icons.place),
+      ),
+    );
+  }
+}
+
+class _StateMessage extends StatelessWidget {
+  const _StateMessage({
+    required this.icon,
+    required this.message,
+    required this.action,
+  });
+
+  final IconData icon;
+  final String message;
+  final VoidCallback action;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 56,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 12),
+          Text(message, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: action,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Reintentar'),
+          ),
+        ],
+      ),
+    ),
+  );
 }

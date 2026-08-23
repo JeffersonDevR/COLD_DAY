@@ -131,8 +131,6 @@ class _SimpleRequestScreenState extends State<SimpleRequestScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('¿Qué necesitás?'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
         centerTitle: true,
         actions: [
           IconButton(

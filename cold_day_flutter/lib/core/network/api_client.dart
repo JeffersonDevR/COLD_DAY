@@ -58,8 +58,9 @@ class ApiClient {
     );
   }
 
-  static Map<String, String> _jsonHeaders() =>
-      {"Content-Type": "application/json"};
+  static Map<String, String> _jsonHeaders() => {
+    "Content-Type": "application/json",
+  };
 
   /// Headers para endpoints autenticados: JSON + `Authorization: Bearer`.
   /// sin sesión activa lanza para que la UI no pegue sin token.
@@ -68,7 +69,10 @@ class ApiClient {
     if (token == null) {
       throw Exception('No hay sesión activa. Iniciá sesión de nuevo.');
     }
-    return {"Content-Type": "application/json", "Authorization": "Bearer $token"};
+    return {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer $token",
+    };
   }
 
   // ===== Auth (RF-AUTH-001..007) =====
@@ -183,7 +187,7 @@ class ApiClient {
   }) async {
     // RF-SR-001: el dueño sale del token autenticado; el payload NO lleva user_id.
     final url = Uri.parse("$baseUrl/services/");
-    
+
     final body = <String, dynamic>{
       "service_type": serviceType,
       "description": description,
@@ -193,13 +197,9 @@ class ApiClient {
     if (budgetOffered != null) body["budget_offered"] = budgetOffered;
     if (equipmentId != null) body["equipment_id"] = equipmentId;
     if (categoryHint != null) body["category_hint"] = categoryHint;
-    
+
     final response = await _client
-        .post(
-          url,
-          headers: await _authedHeaders(),
-          body: jsonEncode(body),
-        )
+        .post(url, headers: await _authedHeaders(), body: jsonEncode(body))
         .timeout(_timeout);
 
     if (response.statusCode == 201) {
@@ -265,7 +265,9 @@ class ApiClient {
     required String observations,
   }) async {
     final url = Uri.parse("$baseUrl/services/$requestId/diagnosis");
-    return _postAuthed(url, {"observations": observations}, "registrar el diagnóstico");
+    return _postAuthed(url, {
+      "observations": observations,
+    }, "registrar el diagnóstico");
   }
 
   /// RF-SR-005: el técnico asignado propone el pacto con desglose y observaciones.
@@ -277,16 +279,12 @@ class ApiClient {
     String? observations,
   }) async {
     final url = Uri.parse("$baseUrl/services/$requestId/agreements/");
-    return _postAuthed(
-      url,
-      {
-        "labor_cost": laborCost,
-        "transport_cost": transportCost,
-        "diagnosis_cost": diagnosisCost,
-        "observations": observations,
-      },
-      "proponer el pacto",
-    );
+    return _postAuthed(url, {
+      "labor_cost": laborCost,
+      "transport_cost": transportCost,
+      "diagnosis_cost": diagnosisCost,
+      "observations": observations,
+    }, "proponer el pacto");
   }
 
   /// RF-SR-008: el técnico asignado finaliza el servicio desde `in_progress`.
@@ -352,8 +350,9 @@ class ApiClient {
     required int requestId,
     required int agreementId,
   }) async {
-    final url =
-        Uri.parse("$baseUrl/services/$requestId/agreements/$agreementId/accept");
+    final url = Uri.parse(
+      "$baseUrl/services/$requestId/agreements/$agreementId/accept",
+    );
     return _postAuthed(url, null, "aceptar el pacto");
   }
 
@@ -362,8 +361,9 @@ class ApiClient {
     required int requestId,
     required int agreementId,
   }) async {
-    final url =
-        Uri.parse("$baseUrl/services/$requestId/agreements/$agreementId/reject");
+    final url = Uri.parse(
+      "$baseUrl/services/$requestId/agreements/$agreementId/reject",
+    );
     return _postAuthed(url, null, "rechazar el pacto");
   }
 
@@ -388,16 +388,12 @@ class ApiClient {
     String? comment,
   }) async {
     final url = Uri.parse("$baseUrl/services/$requestId/review/");
-    return _postAuthed(
-      url,
-      {
-        "punctuality": punctuality,
-        "quality": quality,
-        "professionalism": professionalism,
-        "comment": comment,
-      },
-      "enviar la calificación",
-    );
+    return _postAuthed(url, {
+      "punctuality": punctuality,
+      "quality": quality,
+      "professionalism": professionalism,
+      "comment": comment,
+    }, "enviar la calificación");
   }
 
   // ===== S5 admin (RF-ADM-001..008) =====
@@ -449,9 +445,14 @@ class ApiClient {
   }) async {
     // RF-MATCH-006: endpoint REAL del radar del técnico
     // (/api/services/technicians-nearby/, no el /api/services/nearby inexistente).
-    var urlStr = "$baseUrl/services/technicians-nearby/?latitude=$latitude&longitude=$longitude&radius_km=$radiusKm";
-    if (specialty != null) urlStr += "&specialty=${Uri.encodeComponent(specialty)}";
-    if (serviceType != null) urlStr += "&service_type=${Uri.encodeComponent(serviceType)}";
+    var urlStr =
+        "$baseUrl/services/technicians-nearby/?latitude=$latitude&longitude=$longitude&radius_km=$radiusKm";
+    if (specialty != null) {
+      urlStr += "&specialty=${Uri.encodeComponent(specialty)}";
+    }
+    if (serviceType != null) {
+      urlStr += "&service_type=${Uri.encodeComponent(serviceType)}";
+    }
 
     final url = Uri.parse(urlStr);
     final response = await _client.get(url).timeout(_timeout);
@@ -479,9 +480,7 @@ class ApiClient {
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final technicians = body['technicians'] as List<dynamic>? ?? [];
-      return technicians
-          .map((tech) => tech as Map<String, dynamic>)
-          .toList();
+      return technicians.map((tech) => tech as Map<String, dynamic>).toList();
     } else {
       throw Exception("Error al buscar técnicos: ${response.body}");
     }
@@ -490,9 +489,20 @@ class ApiClient {
   // Technician services management
   static Future<List<Map<String, dynamic>>> fetchMyServices() async {
     final url = Uri.parse("$baseUrl/technicians/me/services");
-    final response = await _client.get(url, headers: await _authedHeaders()).timeout(_timeout);
-    final body = await _decodeOrThrow(response, "Error al cargar servicios");
-    final services = body['services'] as List<dynamic>? ?? [];
+    final response = await _client
+        .get(url, headers: await _authedHeaders())
+        .timeout(_timeout);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        "Error al cargar servicios (${response.statusCode}): ${response.body}",
+      );
+    }
+    final decoded = response.body.isEmpty
+        ? <dynamic>[]
+        : jsonDecode(response.body);
+    final services = decoded is List
+        ? decoded
+        : (decoded as Map<String, dynamic>)['services'] as List<dynamic>? ?? [];
     return services.map((item) => item as Map<String, dynamic>).toList();
   }
 
@@ -502,15 +512,11 @@ class ApiClient {
     required String sector,
   }) async {
     final url = Uri.parse("$baseUrl/technicians/me/services");
-    return _postAuthed(
-      url,
-      {
-        "category_id": categoryId,
-        "service_types": serviceTypes,
-        "sector": sector,
-      },
-      "agregar servicio",
-    );
+    return _postAuthed(url, {
+      "category_id": categoryId,
+      "service_types": serviceTypes,
+      "sector": sector,
+    }, "agregar servicio");
   }
 
   static Future<void> removeMyService(int serviceId) async {
@@ -532,21 +538,20 @@ class ApiClient {
         .post(
           url,
           headers: await _authedHeaders(),
-          body: jsonEncode({
-            "latitude": latitude,
-            "longitude": longitude,
-          }),
+          body: jsonEncode({"latitude": latitude, "longitude": longitude}),
         )
         .timeout(_timeout);
     await _decodeOrThrow(response, "Error al enviar ubicación");
   }
 
-  static Future<Map<String, dynamic>?> fetchTechnicianLocation(int requestId) async {
+  static Future<Map<String, dynamic>?> fetchTechnicianLocation(
+    int requestId,
+  ) async {
     final url = Uri.parse("$baseUrl/tracking/$requestId/location");
     final response = await _client
         .get(url, headers: await _authedHeaders())
         .timeout(_timeout);
-    
+
     if (response.statusCode == 404) return null;
     return _decodeOrThrow(response, "Error al obtener ubicación del técnico");
   }
@@ -559,9 +564,7 @@ class ApiClient {
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final categories = body['categories'] as List<dynamic>;
-      return categories
-          .map((cat) => cat as Map<String, dynamic>)
-          .toList();
+      return categories.map((cat) => cat as Map<String, dynamic>).toList();
     } else {
       throw Exception("Error al cargar el catálogo: ${response.body}");
     }

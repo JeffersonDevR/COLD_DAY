@@ -85,7 +85,8 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
     final proposed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) => PactProposalScreen(requestId: request['id'] as int),
+        builder: (context) =>
+            PactProposalScreen(requestId: request['id'] as int),
       ),
     );
     if (proposed == true) {
@@ -128,15 +129,15 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Radar de Solicitudes'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
         centerTitle: true,
         actions: [
           IconButton(
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const ServiceConfigScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const ServiceConfigScreen(),
+                ),
               );
             },
             icon: const Icon(Icons.settings),
@@ -152,7 +153,9 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
             onPressed: () async {
               final refresh = await TokenStore.readRefreshToken();
               if (refresh != null) {
-                try { await ApiClient.logout(refresh); } catch (_) {}
+                try {
+                  await ApiClient.logout(refresh);
+                } catch (_) {}
               }
               await TokenStore.clear();
               if (!context.mounted) return;
@@ -345,7 +348,11 @@ class _RequestCard extends StatelessWidget {
     );
   }
 
-  Widget _buildAction(BuildContext context, String status, String? myBidStatus) {
+  Widget _buildAction(
+    BuildContext context,
+    String status,
+    String? myBidStatus,
+  ) {
     // Oferta ya enviada: no se permite duplicar (RF-MATCH-005).
     if (myBidStatus == 'pending') {
       return const Chip(

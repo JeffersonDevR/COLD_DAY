@@ -24,6 +24,16 @@ class MyApp extends StatelessWidget {
           surface: Colors.white,
           onSurface: Color(0xFF0F172A),
         ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF075985),
+          foregroundColor: Colors.white,
+        ),
+        disabledColor: Color(0xFF64748B),
+        filledButtonTheme: FilledButtonThemeData(
+          style: ButtonStyle(
+            foregroundColor: WidgetStatePropertyAll(Colors.white),
+          ),
+        ),
         useMaterial3: true,
       ),
       darkTheme: ThemeData(
@@ -35,6 +45,11 @@ class MyApp extends StatelessWidget {
           surface: Color(0xFF111928),
           onSurface: Colors.white,
         ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF0C4A6E),
+          foregroundColor: Colors.white,
+        ),
+        disabledColor: Color(0xFFCBD5E1),
         useMaterial3: true,
       ),
       home: const AuthGate(),

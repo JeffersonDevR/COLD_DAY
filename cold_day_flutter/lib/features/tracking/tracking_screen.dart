@@ -24,12 +24,27 @@ class _TrackingScreenState extends State<TrackingScreen> {
   Timer? _timer;
   Map<String, dynamic>? _techLocation;
   bool _loading = true;
+  String? _error;
+
+  double? _coordinate(Object? value, {required bool latitude}) {
+    final number = value is num ? value.toDouble() : double.tryParse('$value');
+    if (number == null || !number.isFinite) return null;
+    if (latitude
+        ? number < -90 || number > 90
+        : number < -180 || number > 180) {
+      return null;
+    }
+    return number;
+  }
 
   @override
   void initState() {
     super.initState();
     _fetchLocation();
-    _timer = Timer.periodic(const Duration(seconds: 10), (_) => _fetchLocation());
+    _timer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _fetchLocation(),
+    );
   }
 
   @override
@@ -45,25 +60,30 @@ class _TrackingScreenState extends State<TrackingScreen> {
       setState(() {
         _techLocation = loc;
         _loading = false;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _error = 'No se pudo actualizar la ubicación.';
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Rastreo del Técnico'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: const Text('Rastreo del Técnico')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                if (_error != null && _techLocation == null)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(_error!, textAlign: TextAlign.center),
+                  ),
                 if (_techLocation != null)
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -74,7 +94,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: Text(
-                            'ETA: ${_techLocation!['eta'] ?? 'Calculando...'}',
+                            'Última actualización: ${_techLocation!['updated_at'] ?? 'sin fecha'}',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -89,7 +109,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.coldday.app',
                       ),
                       MarkerLayer(
@@ -98,17 +119,40 @@ class _TrackingScreenState extends State<TrackingScreen> {
                             point: LatLng(widget.clientLat, widget.clientLon),
                             width: 40,
                             height: 40,
-                            child: const Icon(Icons.home, color: Colors.blue, size: 40),
+                            child: const Icon(
+                              Icons.home,
+                              color: Colors.blue,
+                              size: 40,
+                            ),
                           ),
-                          if (_techLocation != null && _techLocation!['latitude'] != null)
+                          if (_coordinate(
+                                    _techLocation?['latitude'],
+                                    latitude: true,
+                                  ) !=
+                                  null &&
+                              _coordinate(
+                                    _techLocation?['longitude'],
+                                    latitude: false,
+                                  ) !=
+                                  null)
                             Marker(
                               point: LatLng(
-                                (_techLocation!['latitude'] as num).toDouble(),
-                                (_techLocation!['longitude'] as num).toDouble(),
+                                _coordinate(
+                                  _techLocation!['latitude'],
+                                  latitude: true,
+                                )!,
+                                _coordinate(
+                                  _techLocation!['longitude'],
+                                  latitude: false,
+                                )!,
                               ),
                               width: 40,
                               height: 40,
-                              child: const Icon(Icons.engineering, color: Colors.green, size: 40),
+                              child: const Icon(
+                                Icons.engineering,
+                                color: Colors.green,
+                                size: 40,
+                              ),
                             ),
                         ],
                       ),
