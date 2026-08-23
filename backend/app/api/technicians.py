@@ -53,11 +53,22 @@ async def find_requests_nearby(
         )
         .where(ServiceRequest.status.in_(ACTIVE_RADAR_STATUSES))
         .where(func.ST_DWithin(ServiceRequest.location, point, radius_km / 111.0))
+        .where(ServiceRequest.location.is_not(None))
+        .where(func.ST_IsValid(ServiceRequest.location))
+        .where(func.ST_Y(ServiceRequest.location).between(-90, 90))
+        .where(func.ST_X(ServiceRequest.location).between(-180, 180))
         .order_by(ServiceRequest.id.desc())
     )
 
     requests = []
     for req, latitude, longitude in result.all():
+        if (
+            latitude is None
+            or longitude is None
+            or not -90 <= float(latitude) <= 90
+            or not -180 <= float(longitude) <= 180
+        ):
+            continue
         my_bid = next(
             (bid for bid in req.bids if bid.technician_id == technician.id), None
         )

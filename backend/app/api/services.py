@@ -70,6 +70,10 @@ async def find_technicians_nearby(
             selectinload(Technician.services).selectinload(TechnicianService.category)
         )
         .where(func.ST_DWithin(Technician.location, point, radius_km / 111.0))
+        .where(Technician.location.is_not(None))
+        .where(func.ST_IsValid(Technician.location))
+        .where(func.ST_Y(Technician.location).between(-90, 90))
+        .where(func.ST_X(Technician.location).between(-180, 180))
         .where(Technician.verification_status == "verified")
         .where(Technician.availability == "free")
     )
@@ -93,6 +97,13 @@ async def find_technicians_nearby(
         technician_latitude_value,
         technician_longitude_value,
     ) in result.unique().all():
+        if (
+            technician_latitude_value is None
+            or technician_longitude_value is None
+            or not -90 <= float(technician_latitude_value) <= 90
+            or not -180 <= float(technician_longitude_value) <= 180
+        ):
+            continue
         distance_km = round(float(distance_deg) * 111.0, 2)
         offered_services = []
         for svc in tech.services:
@@ -406,7 +417,11 @@ async def get_service_request_detail(
     Visible solo para el dueño, el técnico asignado y admin; ajeno -> 404.
     """
     result = await db.execute(
-        select(ServiceRequest)
+        select(
+            ServiceRequest,
+            func.ST_Y(ServiceRequest.location).label("latitude"),
+            func.ST_X(ServiceRequest.location).label("longitude"),
+        )
         .options(
             selectinload(ServiceRequest.equipment),
             selectinload(ServiceRequest.bids).selectinload(TechnicianBid.technician),

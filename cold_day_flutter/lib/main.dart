@@ -24,6 +24,10 @@ class MyApp extends StatelessWidget {
           surface: Colors.white,
           onSurface: Color(0xFF0F172A),
         ),
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(color: Color(0xFF0F172A)),
+          bodySmall: TextStyle(color: Color(0xFF334155)),
+        ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF075985),
           foregroundColor: Colors.white,
@@ -44,6 +48,10 @@ class MyApp extends StatelessWidget {
           onPrimary: Color(0xFF080F1E),
           surface: Color(0xFF111928),
           onSurface: Colors.white,
+        ),
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(color: Colors.white),
+          bodySmall: TextStyle(color: Color(0xFFCBD5E1)),
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF0C4A6E),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cold_day_flutter/core/network/api_client.dart';
+import 'package:cold_day_flutter/core/map/map_config.dart';
 
 class TrackingScreen extends StatefulWidget {
   final int requestId;
@@ -73,6 +74,16 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final clientLatitude = _coordinate(widget.clientLat, latitude: true);
+    final clientLongitude = _coordinate(widget.clientLon, latitude: false);
+    if (clientLatitude == null || clientLongitude == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Rastreo del Técnico')),
+        body: const Center(
+          child: Text('La ubicación del servicio no es válida.'),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Rastreo del Técnico')),
       body: _loading
@@ -104,19 +115,18 @@ class _TrackingScreenState extends State<TrackingScreen> {
                 Expanded(
                   child: FlutterMap(
                     options: MapOptions(
-                      initialCenter: LatLng(widget.clientLat, widget.clientLon),
+                      initialCenter: LatLng(clientLatitude, clientLongitude),
                       initialZoom: 14.0,
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate: mapTileUrl,
                         userAgentPackageName: 'com.coldday.app',
                       ),
                       MarkerLayer(
                         markers: [
                           Marker(
-                            point: LatLng(widget.clientLat, widget.clientLon),
+                            point: LatLng(clientLatitude, clientLongitude),
                             width: 40,
                             height: 40,
                             child: const Icon(
@@ -155,6 +165,9 @@ class _TrackingScreenState extends State<TrackingScreen> {
                               ),
                             ),
                         ],
+                      ),
+                      RichAttributionWidget(
+                        attributions: [TextSourceAttribution(mapAttribution)],
                       ),
                     ],
                   ),

@@ -7,6 +7,7 @@ import 'package:cold_day_flutter/features/technician/bid_submission_screen.dart'
 import 'package:cold_day_flutter/features/technician/diagnosis_screen.dart';
 import 'package:cold_day_flutter/features/technician/pact_proposal_screen.dart';
 import 'package:cold_day_flutter/features/technician/service_config_screen.dart';
+import 'package:cold_day_flutter/features/radar/technician_map_screen.dart';
 
 /// Dashboard del técnico (HU-SR-002): radar real de solicitudes cercanas
 /// (RF-MATCH-004) con acciones según el estado de cada solicitud:
@@ -142,6 +143,14 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
             },
             icon: const Icon(Icons.settings),
             tooltip: 'Mis servicios',
+          ),
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TechnicianMapScreen()),
+            ),
+            icon: const Icon(Icons.map_outlined),
+            tooltip: 'Ver mapa',
           ),
           IconButton(
             onPressed: _loading ? null : _loadRadar,

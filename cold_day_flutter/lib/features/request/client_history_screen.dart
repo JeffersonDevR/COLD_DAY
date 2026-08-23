@@ -118,7 +118,7 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Colors.blueAccent),
+            CircularProgressIndicator(),
             SizedBox(height: 16),
             Text('Cargando historial...'),
           ],
@@ -450,9 +450,7 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Colors.blueAccent),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {

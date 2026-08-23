@@ -334,20 +334,26 @@ class _SimpleRequestScreenState extends State<SimpleRequestScreen> {
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.blueAccent,
-                            side: const BorderSide(color: Colors.blueAccent),
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                            side: BorderSide(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                           onPressed: _locating ? null : _useGpsLocation,
                           icon: _locating
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 18,
                                   height: 18,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Colors.blueAccent,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
                                 )
                               : const Icon(Icons.my_location),
@@ -364,10 +370,10 @@ class _SimpleRequestScreenState extends State<SimpleRequestScreen> {
               ),
               const SizedBox(height: 28),
               SizedBox(
-                height: 54,
                 child: FilledButton.icon(
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),

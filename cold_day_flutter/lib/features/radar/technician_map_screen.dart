@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'package:cold_day_flutter/core/network/api_client.dart';
+import 'package:cold_day_flutter/core/map/map_config.dart';
 
 /// Technician radar map. Requests are supplied by the authenticated backend
 /// endpoint, so markers always represent real nearby client requests.
@@ -112,7 +113,7 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
       options: MapOptions(initialCenter: center, initialZoom: 13),
       children: [
         TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          urlTemplate: mapTileUrl,
           userAgentPackageName: 'com.coldday.app',
         ),
         MarkerLayer(
@@ -135,6 +136,9 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
               ),
             );
           }).toList(),
+        ),
+        RichAttributionWidget(
+          attributions: [TextSourceAttribution(mapAttribution)],
         ),
       ],
     );
