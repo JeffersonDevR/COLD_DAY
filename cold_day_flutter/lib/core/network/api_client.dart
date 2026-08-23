@@ -478,7 +478,7 @@ class ApiClient {
 
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final technicians = body['technicians'] as List<dynamic>;
+      final technicians = body['technicians'] as List<dynamic>? ?? [];
       return technicians
           .map((tech) => tech as Map<String, dynamic>)
           .toList();

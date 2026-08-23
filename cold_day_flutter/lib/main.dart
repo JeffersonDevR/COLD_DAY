@@ -14,7 +14,19 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Cold Day ❄️',
+      themeMode: ThemeMode.system,
       theme: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: const Color(0xFFF9FAFB),
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFF0284C7),
+          onPrimary: Colors.white,
+          surface: Colors.white,
+          onSurface: Color(0xFF0F172A),
+        ),
+        useMaterial3: true,
+      ),
+      darkTheme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF080F1E),
         colorScheme: const ColorScheme.dark(
@@ -24,8 +36,6 @@ class MyApp extends StatelessWidget {
           onSurface: Colors.white,
         ),
         useMaterial3: true,
-        splashColor: Colors.transparent,
-        highlightColor: Colors.white10,
       ),
       home: const AuthGate(),
       debugShowCheckedModeBanner: false,

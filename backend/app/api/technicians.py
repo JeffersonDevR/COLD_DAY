@@ -6,7 +6,7 @@ solicitudes `requested`/`bidding` dentro del radio y muestra el estado del bid
 del técnico en solicitudes que ya ofertó (evita duplicar ofertas).
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -23,7 +23,7 @@ ACTIVE_RADAR_STATUSES = ("requested", "bidding")
 
 @router.get("/requests/nearby/")
 async def find_requests_nearby(
-    radius_km: float = 10.0,
+    radius_km: float = Query(default=10.0, gt=0, le=100),
     user: User = Depends(require_roles("technician")),
     db: AsyncSession = Depends(get_db),
 ):

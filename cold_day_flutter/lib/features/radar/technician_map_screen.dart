@@ -36,7 +36,7 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
       _error = null;
     });
     try {
-      final technicians = await ApiClient.fetchNearbyRequests(
+      final technicians = await ApiClient.findNearbyTechnicians(
         latitude: widget.latitude,
         longitude: widget.longitude,
       );
@@ -44,138 +44,49 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
       setState(() => _technicians = technicians);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'No se pudieron cargar los técnicos: $e');
+      setState(() => _error = 'No se pudieron cargar los técnicos.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _sendOffer(Map<String, dynamic> tech) async {
-    final transportController = TextEditingController(text: '15000');
-    final diagnosisController = TextEditingController(text: '35000');
-
-    final costs = await showDialog<List<double>>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Enviar oferta'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Oferta para ${tech['name']}'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: transportController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Costo de traslado (COP)',
-                prefixText: '\$ ',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: diagnosisController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Costo de diagnóstico (COP)',
-                prefixText: '\$ ',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final transport = double.tryParse(transportController.text);
-              final diagnosis = double.tryParse(diagnosisController.text);
-              if (transport == null || transport < 0 || diagnosis == null || diagnosis < 0) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('Los costos deben ser >= 0')),
-                );
-                return;
-              }
-              Navigator.pop(ctx, [transport, diagnosis]);
-            },
-            child: const Text('Enviar oferta'),
-          ),
-        ],
-      ),
-    );
-
-    if (costs == null || !mounted) return;
-
-    final transport = costs[0];
-    final diagnosis = costs[1];
-
-    try {
-      await ApiClient.sendTechnicianBid(
-        serviceRequestId: widget.requestId,
-        priceOffered: transport + diagnosis,
-        estimatedTimeMinutes: 45,
-        transportCost: transport,
-        diagnosisCost: diagnosis,
-      );
-
-      if (!mounted) return;
-
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
-          title: const Text('¡Oferta enviada!'),
-          content: Text(
-            'Tu oferta para ${tech['name']} se envió: '
-            '\$${transport.toStringAsFixed(0)} de traslado + '
-            '\$${diagnosis.toStringAsFixed(0)} de diagnóstico.',
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.pop(context); // Close bottom sheet
-              },
-              child: const Text('Listo'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al enviar la oferta: $e')),
-      );
+  double? _coordinate(Object? value, {required bool latitude}) {
+    final number = value is num ? value.toDouble() : double.tryParse('$value');
+    if (number == null || !number.isFinite) return null;
+    if (latitude
+        ? number < -90 || number > 90
+        : number < -180 || number > 180) {
+      return null;
     }
+    return number;
   }
 
   void _showTechnicianDetails(Map<String, dynamic> tech) {
-    final rating = (tech['rating'] as num).toDouble();
-    final distance = (tech['distance_km'] as num).toDouble();
-    final name = tech['name'] as String;
-    final specialty = tech['specialty'] as String? ?? 'Técnico certificado';
-    
+    final rating = (tech['rating'] as num?)?.toDouble() ?? 5.0;
+    final name = tech['name'] as String? ?? 'Técnico';
+    final specialty = tech['specialty'] as String? ?? 'Técnico';
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 CircleAvatar(
-                  radius: 26,
-                  backgroundColor: Colors.blueAccent,
-                  child: Text(
-                    name[0].toUpperCase(),
-                    style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
+                  radius: 28,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.15),
+                  child: Icon(
+                    Icons.handyman,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 28,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -183,38 +94,36 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text(specialty, style: const TextStyle(color: Colors.grey)),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        specialty,
+                        style: TextStyle(
+                          color: Theme.of(context).hintColor,
+                          fontSize: 14,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 20),
-                const SizedBox(width: 4),
-                Text('$rating', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(width: 24),
-                const Icon(Icons.location_on, color: Colors.blueGrey, size: 20),
-                const SizedBox(width: 4),
-                Text('$distance km', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Row(
+                  children: [
+                    const Icon(Icons.star, color: Colors.amber, size: 20),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$rating',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.green.shade600,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                onPressed: () => _sendOffer(tech),
-                icon: const Icon(Icons.handshake),
-                label: const Text('Enviar oferta', style: TextStyle(fontSize: 16)),
-              ),
-            ),
           ],
         ),
       ),
@@ -225,57 +134,111 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Mapa de Técnicos #${widget.requestId}'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
+        title: Text('Radar de Técnicos #${widget.requestId}'),
+        centerTitle: true,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!))
-              : FlutterMap(
-                  options: MapOptions(
-                    initialCenter: LatLng(widget.latitude, widget.longitude),
-                    initialZoom: 13.0,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.coldday.app',
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        // Client marker
-                        Marker(
-                          point: LatLng(widget.latitude, widget.longitude),
-                          width: 40,
-                          height: 40,
-                          child: const Icon(Icons.person_pin_circle, color: Colors.blue, size: 40),
+          ? Center(child: Text(_error!))
+              : _technicians.isEmpty
+          ? const Center(child: Text('No se encontraron técnicos en tu área'))
+          : _technicians.every(
+                  (tech) =>
+                      _coordinate(tech['latitude'], latitude: true) != null &&
+                      _coordinate(tech['longitude'], latitude: false) != null,
+                )
+          ? FlutterMap(
+              options: MapOptions(
+                initialCenter: LatLng(widget.latitude, widget.longitude),
+                initialZoom: 14.0,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.coldday.app',
+                ),
+                MarkerLayer(
+                  markers: [
+                    // Client Marker (Icono de Casa/Usuario)
+                    Marker(
+                      point: LatLng(widget.latitude, widget.longitude),
+                      width: 45,
+                      height: 45,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.blue, width: 2),
                         ),
-                        // Technician markers
-                        ..._technicians.map((tech) {
-                          // Note: In a real app, API should return tech lat/lon. 
-                          // Here we fallback to client location + small offset if missing for demo.
-                          final lat = tech['latitude'] as double? ?? widget.latitude + 0.01;
-                          final lon = tech['longitude'] as double? ?? widget.longitude + 0.01;
-                          return Marker(
-                            point: LatLng(lat, lon),
-                            width: 60,
-                            height: 60,
-                            child: GestureDetector(
-                              onTap: () => _showTechnicianDetails(tech),
-                              child: const Column(
-                                children: [
-                                  Icon(Icons.engineering, color: Colors.green, size: 30),
-                                ],
-                              ),
+                        child: const Icon(
+                          Icons.home,
+                          color: Colors.blue,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                    // Technician Markers (Iconos de llave/herramienta verdes)
+                    ..._technicians.map((tech) {
+                      final lat = _coordinate(
+                        tech['latitude'],
+                        latitude: true,
+                      )!;
+                      final lon = _coordinate(
+                        tech['longitude'],
+                        latitude: false,
+                      )!;
+                      return Marker(
+                        point: LatLng(lat, lon),
+                        width: 50,
+                        height: 50,
+                        child: GestureDetector(
+                          onTap: () => _showTechnicianDetails(tech),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.green, width: 2),
                             ),
-                          );
-                        }),
-                      ],
+                            child: const Icon(
+                              Icons.handyman,
+                              color: Colors.green,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ],
+            )
+          : const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.location_off, size: 56, color: Colors.grey),
+                    SizedBox(height: 12),
+                    Text(
+                      'No hay técnicos con ubicación válida',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'La ubicación se mostrará cuando esté disponible.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey),
                     ),
                   ],
                 ),
+              ),
+            ),
     );
   }
 }

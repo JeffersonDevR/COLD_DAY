@@ -12,8 +12,8 @@ class RegisterClient(BaseModel):
 
 class RegisterTechnician(RegisterClient):
     specialty: str = Field(min_length=2, max_length=100)
-    latitude: float
-    longitude: float
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
 
 
 class LoginRequest(BaseModel):

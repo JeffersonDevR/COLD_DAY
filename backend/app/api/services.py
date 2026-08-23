@@ -41,9 +41,9 @@ async def _current_technician(db: AsyncSession, user: User) -> Technician:
 
 @router.get("/technicians-nearby/")
 async def find_technicians_nearby(
-    latitude: float,
-    longitude: float,
-    radius_km: float = 5.0,
+    latitude: float = Query(..., ge=-90, le=90),
+    longitude: float = Query(..., ge=-180, le=180),
+    radius_km: float = Query(default=5.0, gt=0, le=100),
     specialty: str | None = None,
     service_type: str | None = None,
     min_rating: float | None = Query(default=None, ge=0, le=5),
@@ -56,9 +56,16 @@ async def find_technicians_nearby(
     """
     point = func.ST_SetSRID(func.ST_MakePoint(longitude, latitude), 4326)
     distance = func.ST_Distance(Technician.location, point)
+    technician_latitude = func.ST_Y(Technician.location)
+    technician_longitude = func.ST_X(Technician.location)
 
     query = (
-        select(Technician, distance.label("distance_deg"))
+        select(
+            Technician,
+            distance.label("distance_deg"),
+            technician_latitude.label("technician_latitude"),
+            technician_longitude.label("technician_longitude"),
+        )
         .options(
             selectinload(Technician.services).selectinload(TechnicianService.category)
         )
@@ -80,7 +87,12 @@ async def find_technicians_nearby(
     result = await db.execute(query)
     technicians = []
 
-    for tech, distance_deg in result.unique().all():
+    for (
+        tech,
+        distance_deg,
+        technician_latitude_value,
+        technician_longitude_value,
+    ) in result.unique().all():
         distance_km = round(float(distance_deg) * 111.0, 2)
         offered_services = []
         for svc in tech.services:
@@ -96,6 +108,8 @@ async def find_technicians_nearby(
                 "name": tech.name,
                 "rating": tech.rating,
                 "specialty": tech.specialty,
+                "latitude": float(technician_latitude_value),
+                "longitude": float(technician_longitude_value),
                 "distance_km": distance_km,
                 "services": offered_services
             }

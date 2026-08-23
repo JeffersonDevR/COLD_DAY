@@ -1,124 +1,83 @@
 import 'package:flutter/material.dart';
 import 'package:cold_day_flutter/features/auth/login_screen.dart';
-import 'package:cold_day_flutter/features/auth/register_client_screen.dart';
-import 'package:cold_day_flutter/features/auth/register_technician_screen.dart';
-import 'package:cold_day_flutter/features/pqr/pqr_screen.dart';
-
-// ─── Design tokens ─────────────────────────────────────────────────────────
-const _bg = Color(0xFF080F1E);
-const _accent = Color(0xFF5BC8F5);
-const _textPrimary = Colors.white;
-const _textMuted = Color(0xFF6B7FA3);
-const _surface = Color(0xFF111928);
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-      body: SafeArea(
+  void _showRoleSelection(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 48),
-
-              // ── Brand ──────────────────────────────────────────────────
-              Row(
-                children: [
-                  const Icon(Icons.ac_unit, color: _accent, size: 28),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Cold Day',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: _textPrimary,
-                      letterSpacing: -0.5,
+              const Text(
+                '¿Cómo deseas continuar?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              // Cliente
+              _RoleButton(
+                icon: Icons.person_outline,
+                title: 'Soy Cliente',
+                subtitle: 'Necesito soporte para mis equipos',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(mode: LoginMode.client),
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Técnicos certificados,\na un toque de distancia.',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                  color: _textPrimary,
-                  height: 1.2,
-                  letterSpacing: -0.8,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Refrigeración · A/C · Electricidad · Electrodomésticos',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: _textMuted,
-                  letterSpacing: 0.1,
-                ),
-              ),
-
-              const SizedBox(height: 48),
-
-              // ── Primary actions ────────────────────────────────────────
-              _RoleCard(
-                icon: Icons.build_rounded,
-                label: 'Necesito un técnico',
-                sublabel: 'Solicitar servicio',
-                onLogin: () => Navigator.push(
-                  context,
-                  _fade(const LoginScreen()),
-                ),
-                onRegister: () => Navigator.push(
-                  context,
-                  _fade(const RegisterClientScreen()),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _RoleCard(
-                icon: Icons.handyman_rounded,
-                label: 'Soy técnico',
-                sublabel: 'Ofrecer servicios',
-                onLogin: () => Navigator.push(
-                  context,
-                  _fade(const LoginScreen(mode: LoginMode.technician)),
-                ),
-                onRegister: () => Navigator.push(
-                  context,
-                  _fade(const RegisterTechnicianScreen()),
-                ),
-              ),
-
-              const Spacer(),
-
-              // ── Secondary row ──────────────────────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _GhostButton(
-                    icon: Icons.support_agent_outlined,
-                    label: 'PQR',
-                    onTap: () => Navigator.push(
-                      context,
-                      _fade(const PqrScreen()),
+              
+              // Técnico
+              _RoleButton(
+                icon: Icons.handyman_outlined,
+                title: 'Soy Técnico',
+                subtitle: 'Quiero ofrecer mis servicios y ganar dinero',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(mode: LoginMode.technician),
                     ),
-                  ),
-                  _GhostButton(
-                    icon: Icons.shield_outlined,
-                    label: 'Admin',
-                    onTap: () => Navigator.push(
-                      context,
-                      _fade(const LoginScreen(mode: LoginMode.admin)),
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 16),
+              
+              // Acceso Administrador (Discreto)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(mode: LoginMode.admin),
+                    ),
+                  );
+                },
+                child: Text(
+                  'Acceso Administrador',
+                  style: TextStyle(color: Theme.of(context).hintColor, fontSize: 13),
+                ),
+              ),
             ],
           ),
         ),
@@ -126,128 +85,130 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  PageRouteBuilder<T> _fade<T>(Widget page) => PageRouteBuilder(
-        pageBuilder: (context, animation, _) => page,
-        transitionsBuilder: (context, anim, _, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 180),
-      );
-}
-
-// ─── Role card ──────────────────────────────────────────────────────────────
-class _RoleCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String sublabel;
-  final VoidCallback onLogin;
-  final VoidCallback onRegister;
-
-  const _RoleCard({
-    required this.icon,
-    required this.label,
-    required this.sublabel,
-    required this.onLogin,
-    required this.onRegister,
-  });
-
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 18, 8, 18),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: _accent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Spacer(),
+              
+              // Logo e Identidad Visual (Estilo Premium Uber)
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF111928) : const Color(0xFFF3F4F6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.ac_unit_rounded,
+                    size: 80,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
               ),
-              child: Icon(icon, color: _accent, size: 22),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: _textPrimary,
-                      letterSpacing: -0.2,
+              const SizedBox(height: 24),
+              const Text(
+                'Cold Day',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Servicios técnicos certificados de climatización, electricidad y electrodomésticos.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: theme.hintColor,
+                  height: 1.4,
+                ),
+              ),
+              
+              const Spacer(),
+              
+              // Botón Principal
+              SizedBox(
+                height: 54,
+                child: FilledButton(
+                  onPressed: () => _showRoleSelection(context),
+                  style: FilledButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    sublabel,
-                    style: const TextStyle(fontSize: 12, color: _textMuted),
+                  child: const Text(
+                    'Comenzar',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                ],
+                ),
               ),
-            ),
-            Column(
-              children: [
-                TextButton(
-                  onPressed: onLogin,
-                  style: TextButton.styleFrom(
-                    foregroundColor: _accent,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text('Entrar', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                ),
-                TextButton(
-                  onPressed: onRegister,
-                  style: TextButton.styleFrom(
-                    foregroundColor: _textMuted,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text('Registro', style: TextStyle(fontSize: 12)),
-                ),
-              ],
-            ),
-          ],
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ─── Ghost button ────────────────────────────────────────────────────────────
-class _GhostButton extends StatelessWidget {
+class _RoleButton extends StatelessWidget {
   final IconData icon;
-  final String label;
+  final String title;
+  final String subtitle;
   final VoidCallback onTap;
 
-  const _GhostButton({
+  const _RoleButton({
     required this.icon,
-    required this.label,
+    required this.title,
+    required this.subtitle,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF111928) : const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 15, color: _textMuted),
-            const SizedBox(width: 6),
-            Text(label, style: const TextStyle(fontSize: 13, color: _textMuted)),
+            Icon(icon, size: 28, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 16),
           ],
         ),
       ),

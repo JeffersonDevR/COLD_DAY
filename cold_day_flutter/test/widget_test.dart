@@ -29,40 +29,47 @@ class FakeClient extends http.BaseClient {
 }
 
 Map<String, dynamic> _catalog() => {
-      'categories': [
-        {
-          'id': 1,
-          'name': 'Neveras',
-          'icon': 'kitchen',
-          'technologies': ['conventional'],
-          'residential': [
-            {'id': 1, 'name': 'Nevera clásica', 'description': 'Nevera básica'},
-          ],
-          'industrial': [],
-        }
+  'categories': [
+    {
+      'id': 1,
+      'name': 'Neveras',
+      'icon': 'kitchen',
+      'technologies': ['conventional'],
+      'residential': [
+        {'id': 1, 'name': 'Nevera clásica', 'description': 'Nevera básica'},
       ],
-    };
+      'industrial': [],
+    },
+  ],
+};
 
 void main() {
   setUpAll(() {
     HttpOverrides.global = null;
   });
 
-  testWidgets('MyApp renders the Cold Day landing', (WidgetTester tester) async {
+  testWidgets('MyApp renders the Cold Day landing', (
+    WidgetTester tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
 
     await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
 
     expect(find.text('Cold Day'), findsOneWidget);
-    expect(find.text('Solicitar un servicio'), findsOneWidget);
-    expect(find.text('Soy un técnico'), findsOneWidget);
-    expect(find.text('Multi servicios técnicos'), findsOneWidget);
+    expect(find.text('Comenzar'), findsOneWidget);
+    expect(
+      find.text(
+        'Servicios técnicos certificados de climatización, electricidad y electrodomésticos.',
+      ),
+      findsOneWidget,
+    );
   });
 
-  // RF-LAND-005: cliente logueado navega Equipo -> Solicitud -> Radar.
-  testWidgets('core flow: equipment -> request -> radar (no dead-end)',
-      (WidgetTester tester) async {
+  // RF-LAND-005: cliente logueado navega Equipo -> Solicitud -> Historial.
+  testWidgets('core flow: equipment -> request -> history (no dead-end)', (
+    WidgetTester tester,
+  ) async {
     SharedPreferences.setMockInitialValues({
       'auth.access_token': 'tok-flow',
       'auth.refresh_token': 'refresh-flow',
@@ -70,31 +77,36 @@ void main() {
       'auth.user_id': 1,
     });
 
-    ApiClient.setClient(FakeClient((request) {
-      if (request.url.path == '/api/catalog/') {
-        return http.Response(jsonEncode(_catalog()), 200);
-      }
-      if (request.url.path == '/api/services/' && request.method == 'POST') {
-        expect(request.headers['Authorization'], 'Bearer tok-flow');
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
-        expect(body.containsKey('user_id'), isFalse);
-        return http.Response(
-          jsonEncode({
-            'message': 'ok',
-            'request_id': 42,
-            'status': 'requested',
-          }),
-          201,
-        );
-      }
-      if (request.url.path == '/api/services/technicians-nearby/') {
-        return http.Response(
-          jsonEncode({'count': 0, 'technicians': []}),
-          200,
-        );
-      }
-      fail('Unexpected request: ${request.method} ${request.url.path}');
-    }));
+    ApiClient.setClient(
+      FakeClient((request) {
+        if (request.url.path == '/api/catalog/') {
+          return http.Response(jsonEncode(_catalog()), 200);
+        }
+        if (request.url.path == '/api/services/' && request.method == 'POST') {
+          expect(request.headers['Authorization'], 'Bearer tok-flow');
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(body.containsKey('user_id'), isFalse);
+          return http.Response(
+            jsonEncode({
+              'message': 'ok',
+              'request_id': 42,
+              'status': 'requested',
+            }),
+            201,
+          );
+        }
+        if (request.url.path == '/api/services/technicians-nearby/') {
+          return http.Response(
+            jsonEncode({'count': 0, 'technicians': []}),
+            200,
+          );
+        }
+        if (request.url.path == '/api/services/my') {
+          return http.Response(jsonEncode({'requests': []}), 200);
+        }
+        fail('Unexpected request: ${request.method} ${request.url.path}');
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: SimpleRequestScreen()));
     await tester.pumpAndSettle();
@@ -106,17 +118,13 @@ void main() {
     await tester.pumpAndSettle();
 
     // Fill in the description
-    await tester.enterText(
-      find.byType(TextField).first,
-      'Nevera no enfria',
-    );
+    await tester.enterText(find.byType(TextField).first, 'Nevera no enfria');
 
     // Scroll down to the button
     await tester.ensureVisible(find.text('Buscar técnicos'));
     await tester.tap(find.text('Buscar técnicos'), warnIfMissed: false);
     await tester.pumpAndSettle();
 
-    // The map screen should open
-    expect(find.text('Mapa de Técnicos #42'), findsOneWidget);
+    expect(find.text('Mi Historial'), findsOneWidget);
   });
 }

@@ -14,14 +14,16 @@ import 'package:cold_day_flutter/features/request/simple_request_screen.dart';
 import 'package:cold_day_flutter/features/home/home_screen.dart';
 import 'package:cold_day_flutter/features/technician/technician_dashboard.dart';
 
+import 'package:cold_day_flutter/features/home/main_navigation_holder.dart';
+
 Widget roleHome(String? role) {
   switch (role) {
     case 'client':
-      return const SimpleRequestScreen();
+      return const MainNavigationHolder(role: 'client');
     case 'technician':
-      return TechnicianDashboard();
+      return const MainNavigationHolder(role: 'technician');
     case 'admin':
-      return const AdminDashboardScreen();
+      return const MainNavigationHolder(role: 'admin');
     default:
       return const HomeScreen();
   }

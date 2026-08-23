@@ -9,7 +9,9 @@ import 'package:cold_day_flutter/features/request/request_status.dart';
 /// y las acciones según el estado: aceptar oferta, aceptar/rechazar pacto
 /// (PactReviewDialog) y cancelar la solicitud.
 class ClientHistoryScreen extends StatefulWidget {
-  const ClientHistoryScreen({super.key});
+  final bool? filterActive;
+  
+  const ClientHistoryScreen({super.key, this.filterActive});
 
   @override
   State<ClientHistoryScreen> createState() => _ClientHistoryScreenState();
@@ -32,7 +34,18 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
       _error = null;
     });
     try {
-      final requests = await ApiClient.fetchMyRequests();
+      var requests = await ApiClient.fetchMyRequests();
+      
+      // Aplicar filtro si se especifica
+      if (widget.filterActive != null) {
+        final activeStates = ['requested', 'bidding', 'accepted', 'in_progress'];
+        if (widget.filterActive == true) {
+          requests = requests.where((r) => activeStates.contains(r['status'])).toList();
+        } else {
+          requests = requests.where((r) => !activeStates.contains(r['status'])).toList();
+        }
+      }
+      
       if (!mounted) return;
       setState(() => _requests = requests);
     } catch (e) {
@@ -67,7 +80,7 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: widget.filterActive != null ? null : AppBar(
         title: const Text('Mi Historial'),
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
@@ -81,12 +94,8 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFE3F2FD), Colors.white],
-          ),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
         ),
         child: _buildBody(),
       ),

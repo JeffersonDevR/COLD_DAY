@@ -405,7 +405,9 @@ async def test_nearby_lists_only_verified_and_free_ordered_by_proximity(client):
     assert body["count"] == 2
     assert body["technicians"][0]["distance_km"] < body["technicians"][1]["distance_km"]
     for tech in body["technicians"]:
-        assert set(tech) >= {"id", "name", "rating", "specialty", "distance_km"}
+        assert set(tech) >= {
+            "id", "name", "rating", "specialty", "latitude", "longitude", "distance_km"
+        }
 
 
 async def test_nearby_sorts_by_rating_after_distance_and_filters(client):

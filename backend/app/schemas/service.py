@@ -7,8 +7,8 @@ class ServiceRequestCreate(BaseModel):
     category_hint: str | None = None
     service_type: str = "repair"  # installation, maintenance, repair
     description: str
-    latitude: float
-    longitude: float
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
     budget_offered: float | None = None
 
 
@@ -68,5 +68,5 @@ class TechnicianServiceOut(BaseModel):
     active: bool
 
 class LocationUpdateCreate(BaseModel):
-    latitude: float
-    longitude: float
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
