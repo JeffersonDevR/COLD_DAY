@@ -10,7 +10,7 @@ fi
 
 echo "DATABASE URL is set to: $(echo $COLDDAY_DATABASE_URL | sed 's/\/\/.*@/\/\/****:****@/')"
 
-# Enable PostGIS extension using python script
+# Enable PostGIS extension
 echo "Enabling PostGIS extension in database..."
 python -c "
 import asyncio
@@ -30,6 +30,10 @@ asyncio.run(enable_postgis())
 # Run database migrations
 echo "Running database migrations..."
 alembic upgrade head
+
+# Run Seeding Script to create default users
+echo "Running seed_pilot.py to create pre-made users..."
+python scripts/seed_pilot.py
 
 # Start FastAPI application
 echo "Starting FastAPI server..."
