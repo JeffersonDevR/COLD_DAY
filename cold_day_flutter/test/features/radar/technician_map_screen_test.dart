@@ -86,4 +86,38 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('list selection opens request details and offer action', (
+    tester,
+  ) async {
+    ApiClient.setClient(
+      _FakeClient(
+        http.Response(
+          jsonEncode({
+            'requests': [
+              {
+                'id': 8,
+                'equipment': 'Aire',
+                'description': 'Revisar unidad',
+                'latitude': 7.89,
+                'longitude': -72.50,
+                'status': 'requested',
+                'service_type': 'repair',
+                'distance_km': 1.4,
+              },
+            ],
+          }),
+          200,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: TechnicianMapScreen()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Aire'));
+    await tester.pump();
+
+    expect(find.text('Ubicación disponible'), findsOneWidget);
+    expect(find.text('Enviar oferta'), findsOneWidget);
+  });
 }

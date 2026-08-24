@@ -31,66 +31,74 @@ Map<String, dynamic> _summaryJson({
   required int id,
   required String status,
   String? technicianName,
-}) =>
-    {
-      'id': id,
-      'status': status,
-      'service_type': 'repair',
-      'description': 'No enfría',
-      'equipment': 'Nevera clásica',
-      'created_at': '2026-08-18T10:00:00',
-      'budget_offered': 80000,
-      'technician': technicianName == null
-          ? null
-          : {'id': 7, 'name': technicianName, 'rating': 4.5, 'specialty': 'Neveras'},
-    };
+}) => {
+  'id': id,
+  'status': status,
+  'service_type': 'repair',
+  'description': 'No enfría',
+  'equipment': 'Nevera clásica',
+  'created_at': '2026-08-18T10:00:00',
+  'budget_offered': 80000,
+  'technician': technicianName == null
+      ? null
+      : {
+          'id': 7,
+          'name': technicianName,
+          'rating': 4.5,
+          'specialty': 'Neveras',
+        },
+};
 
 Map<String, dynamic> _detailJson({
   required int id,
   required String status,
   String bidStatus = 'accepted',
   String pactStatus = 'proposed',
-}) =>
-    {
-      'id': id,
-      'status': status,
-      'service_type': 'repair',
-      'description': 'No enfría',
-      'equipment': {'id': 1, 'name': 'Nevera clásica', 'sector': 'residential'},
-      'created_at': '2026-08-18T10:00:00',
-      'budget_offered': 80000,
-      'diagnosis_observations': 'Fuga de gas refrigerante',
-      'technician': {'id': 7, 'name': 'Carlos Tecnico', 'rating': 4.5, 'specialty': 'Neveras'},
-      'timeline': {
-        'bids': [
-          {
-            'id': 3,
-            'technician_id': 7,
-            'technician_name': 'Carlos Tecnico',
-            'price_offered': 50000,
-            'transport_cost': 15000,
-            'diagnosis_cost': 35000,
-            'estimated_time_minutes': 45,
-            'status': bidStatus,
-            'created_at': '2026-08-18T11:00:00',
-          }
-        ],
-        'agreements': [
-          {
-            'id': 5,
-            'technician_id': 7,
-            'labor_cost': 80000,
-            'transport_cost': 15000,
-            'diagnosis_cost': 35000,
-            'total': 130000,
-            'observations': 'Fuga de gas refrigerante',
-            'status': pactStatus,
-            'created_at': '2026-08-18T12:00:00',
-            'decided_at': null,
-          }
-        ],
+}) => {
+  'id': id,
+  'status': status,
+  'service_type': 'repair',
+  'description': 'No enfría',
+  'equipment': {'id': 1, 'name': 'Nevera clásica', 'sector': 'residential'},
+  'created_at': '2026-08-18T10:00:00',
+  'budget_offered': 80000,
+  'diagnosis_observations': 'Fuga de gas refrigerante',
+  'technician': {
+    'id': 7,
+    'name': 'Carlos Tecnico',
+    'rating': 4.5,
+    'specialty': 'Neveras',
+  },
+  'timeline': {
+    'bids': [
+      {
+        'id': 3,
+        'technician_id': 7,
+        'technician_name': 'Carlos Tecnico',
+        'price_offered': 50000,
+        'transport_cost': 15000,
+        'diagnosis_cost': 35000,
+        'estimated_time_minutes': 45,
+        'status': bidStatus,
+        'created_at': '2026-08-18T11:00:00',
       },
-    };
+    ],
+    'agreements': [
+      {
+        'id': 5,
+        'technician_id': 7,
+        'labor_cost': 80000,
+        'transport_cost': 15000,
+        'diagnosis_cost': 35000,
+        'total': 130000,
+        'observations': 'Fuga de gas refrigerante',
+        'status': pactStatus,
+        'created_at': '2026-08-18T12:00:00',
+        'decided_at': null,
+      },
+    ],
+  },
+};
 
 void main() {
   setUp(() {
@@ -102,22 +110,29 @@ void main() {
     });
   });
 
-  testWidgets('historial lista mis solicitudes desde /api/services/my',
-      (tester) async {
-    ApiClient.setClient(FakeClient((request) {
-      expect(request.method, 'GET');
-      expect(request.url.path, '/api/services/my');
-      expect(request.headers['Authorization'], 'Bearer tok-client');
-      return http.Response(
-        jsonEncode({
-          'requests': [
-            _summaryJson(id: 10, status: 'bidding'),
-            _summaryJson(id: 11, status: 'completed', technicianName: 'Carlos Tecnico'),
-          ],
-        }),
-        200,
-      );
-    }));
+  testWidgets('historial lista mis solicitudes desde /api/services/my', (
+    tester,
+  ) async {
+    ApiClient.setClient(
+      FakeClient((request) {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/services/my');
+        expect(request.headers['Authorization'], 'Bearer tok-client');
+        return http.Response(
+          jsonEncode({
+            'requests': [
+              _summaryJson(id: 10, status: 'bidding'),
+              _summaryJson(
+                id: 11,
+                status: 'completed',
+                technicianName: 'Carlos Tecnico',
+              ),
+            ],
+          }),
+          200,
+        );
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: ClientHistoryScreen()));
     await tester.pumpAndSettle();
@@ -129,9 +144,11 @@ void main() {
   });
 
   testWidgets('historial vacío muestra mensaje', (tester) async {
-    ApiClient.setClient(FakeClient((request) {
-      return http.Response(jsonEncode({'requests': []}), 200);
-    }));
+    ApiClient.setClient(
+      FakeClient((request) {
+        return http.Response(jsonEncode({'requests': []}), 200);
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: ClientHistoryScreen()));
     await tester.pumpAndSettle();
@@ -139,20 +156,26 @@ void main() {
     expect(find.text('Aún no tienes solicitudes'), findsOneWidget);
   });
 
-  testWidgets('detalle muestra la línea de tiempo (técnico, bid y pacto)',
-      (tester) async {
-    ApiClient.setClient(FakeClient((request) {
-      if (request.url.path == '/api/services/my') {
+  testWidgets('detalle muestra la línea de tiempo (técnico, bid y pacto)', (
+    tester,
+  ) async {
+    ApiClient.setClient(
+      FakeClient((request) {
+        if (request.url.path == '/api/services/my') {
+          return http.Response(
+            jsonEncode({
+              'requests': [_summaryJson(id: 10, status: 'pact_proposed')],
+            }),
+            200,
+          );
+        }
+        expect(request.url.path, '/api/services/10');
         return http.Response(
-          jsonEncode({
-            'requests': [_summaryJson(id: 10, status: 'pact_proposed')],
-          }),
+          jsonEncode(_detailJson(id: 10, status: 'pact_proposed')),
           200,
         );
-      }
-      expect(request.url.path, '/api/services/10');
-      return http.Response(jsonEncode(_detailJson(id: 10, status: 'pact_proposed')), 200);
-    }));
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: ClientHistoryScreen()));
     await tester.pumpAndSettle();
@@ -166,27 +189,40 @@ void main() {
     expect(find.text('\$130.000'), findsOneWidget); // total del pacto
   });
 
-  testWidgets('aceptar oferta POSTea al endpoint de accept del bid',
-      (tester) async {
+  testWidgets('aceptar oferta POSTea al endpoint de accept del bid', (
+    tester,
+  ) async {
     String? acceptedPath;
-    ApiClient.setClient(FakeClient((request) {
-      if (request.url.path == '/api/services/10/bids/3/accept') {
-        acceptedPath = request.url.path;
+    ApiClient.setClient(
+      FakeClient((request) {
+        if (request.url.path == '/api/services/10/bids/3/accept') {
+          acceptedPath = request.url.path;
+          return http.Response(
+            jsonEncode({
+              'message': 'Oferta aceptada',
+              'request_id': 10,
+              'status': 'diagnosis',
+              'technician_id': 7,
+            }),
+            200,
+          );
+        }
+        if (request.url.path == '/api/services/my') {
+          return http.Response(
+            jsonEncode({
+              'requests': [_summaryJson(id: 10, status: 'bidding')],
+            }),
+            200,
+          );
+        }
         return http.Response(
-          jsonEncode({'message': 'Oferta aceptada', 'request_id': 10, 'status': 'diagnosis', 'technician_id': 7}),
+          jsonEncode(
+            _detailJson(id: 10, status: 'bidding', bidStatus: 'pending'),
+          ),
           200,
         );
-      }
-      if (request.url.path == '/api/services/my') {
-        return http.Response(
-          jsonEncode({
-            'requests': [_summaryJson(id: 10, status: 'bidding')],
-          }),
-          200,
-        );
-      }
-      return http.Response(jsonEncode(_detailJson(id: 10, status: 'bidding', bidStatus: 'pending')), 200);
-    }));
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: ClientHistoryScreen()));
     await tester.pumpAndSettle();
@@ -202,24 +238,33 @@ void main() {
 
   testWidgets('aceptar pacto desde el diálogo de revisión', (tester) async {
     String? acceptPath;
-    ApiClient.setClient(FakeClient((request) {
-      if (request.url.path == '/api/services/10/agreements/5/accept') {
-        acceptPath = request.url.path;
+    ApiClient.setClient(
+      FakeClient((request) {
+        if (request.url.path == '/api/services/10/agreements/5/accept') {
+          acceptPath = request.url.path;
+          return http.Response(
+            jsonEncode({
+              'message': 'Pacto aceptado, el servicio está en proceso',
+              'request_id': 10,
+              'status': 'in_progress',
+            }),
+            200,
+          );
+        }
+        if (request.url.path == '/api/services/my') {
+          return http.Response(
+            jsonEncode({
+              'requests': [_summaryJson(id: 10, status: 'pact_proposed')],
+            }),
+            200,
+          );
+        }
         return http.Response(
-          jsonEncode({'message': 'Pacto aceptado, el servicio está en proceso', 'request_id': 10, 'status': 'in_progress'}),
+          jsonEncode(_detailJson(id: 10, status: 'pact_proposed')),
           200,
         );
-      }
-      if (request.url.path == '/api/services/my') {
-        return http.Response(
-          jsonEncode({
-            'requests': [_summaryJson(id: 10, status: 'pact_proposed')],
-          }),
-          200,
-        );
-      }
-      return http.Response(jsonEncode(_detailJson(id: 10, status: 'pact_proposed')), 200);
-    }));
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: ClientHistoryScreen()));
     await tester.pumpAndSettle();
@@ -236,29 +281,42 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(acceptPath, '/api/services/10/agreements/5/accept');
-    expect(find.text('Pacto aceptado, el servicio está en proceso'), findsWidgets);
+    expect(
+      find.text('Pacto aceptado, el servicio está en proceso'),
+      findsWidgets,
+    );
   });
 
   testWidgets('rechazar pacto POSTea al endpoint de reject', (tester) async {
     String? rejectPath;
-    ApiClient.setClient(FakeClient((request) {
-      if (request.url.path == '/api/services/10/agreements/5/reject') {
-        rejectPath = request.url.path;
+    ApiClient.setClient(
+      FakeClient((request) {
+        if (request.url.path == '/api/services/10/agreements/5/reject') {
+          rejectPath = request.url.path;
+          return http.Response(
+            jsonEncode({
+              'message':
+                  'Pacto rechazado, las ofertas vuelven a estar disponibles',
+              'request_id': 10,
+              'status': 'bidding',
+            }),
+            200,
+          );
+        }
+        if (request.url.path == '/api/services/my') {
+          return http.Response(
+            jsonEncode({
+              'requests': [_summaryJson(id: 10, status: 'pact_proposed')],
+            }),
+            200,
+          );
+        }
         return http.Response(
-          jsonEncode({'message': 'Pacto rechazado, las ofertas vuelven a estar disponibles', 'request_id': 10, 'status': 'bidding'}),
+          jsonEncode(_detailJson(id: 10, status: 'pact_proposed')),
           200,
         );
-      }
-      if (request.url.path == '/api/services/my') {
-        return http.Response(
-          jsonEncode({
-            'requests': [_summaryJson(id: 10, status: 'pact_proposed')],
-          }),
-          200,
-        );
-      }
-      return http.Response(jsonEncode(_detailJson(id: 10, status: 'pact_proposed')), 200);
-    }));
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: ClientHistoryScreen()));
     await tester.pumpAndSettle();
@@ -271,30 +329,43 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(rejectPath, '/api/services/10/agreements/5/reject');
-    expect(find.text('Pacto rechazado, las ofertas vuelven a estar disponibles'), findsWidgets);
+    expect(
+      find.text('Pacto rechazado, las ofertas vuelven a estar disponibles'),
+      findsWidgets,
+    );
   });
 
-  testWidgets('cancelar solicitud confirma y POSTea al endpoint de cancel',
-      (tester) async {
+  testWidgets('cancelar solicitud confirma y POSTea al endpoint de cancel', (
+    tester,
+  ) async {
     String? cancelPath;
-    ApiClient.setClient(FakeClient((request) {
-      if (request.url.path == '/api/services/10/cancel') {
-        cancelPath = request.url.path;
+    ApiClient.setClient(
+      FakeClient((request) {
+        if (request.url.path == '/api/services/10/cancel') {
+          cancelPath = request.url.path;
+          return http.Response(
+            jsonEncode({
+              'message': 'Solicitud cancelada',
+              'request_id': 10,
+              'status': 'cancelled',
+            }),
+            200,
+          );
+        }
+        if (request.url.path == '/api/services/my') {
+          return http.Response(
+            jsonEncode({
+              'requests': [_summaryJson(id: 10, status: 'requested')],
+            }),
+            200,
+          );
+        }
         return http.Response(
-          jsonEncode({'message': 'Solicitud cancelada', 'request_id': 10, 'status': 'cancelled'}),
+          jsonEncode(_detailJson(id: 10, status: 'requested')),
           200,
         );
-      }
-      if (request.url.path == '/api/services/my') {
-        return http.Response(
-          jsonEncode({
-            'requests': [_summaryJson(id: 10, status: 'requested')],
-          }),
-          200,
-        );
-      }
-      return http.Response(jsonEncode(_detailJson(id: 10, status: 'requested')), 200);
-    }));
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: ClientHistoryScreen()));
     await tester.pumpAndSettle();
@@ -311,40 +382,45 @@ void main() {
     expect(find.text('Solicitud cancelada'), findsWidgets);
   });
 
-  testWidgets(
-      'servicio completado ofrece calificar: navega, POSTea el review y '
+  testWidgets('servicio completado ofrece calificar: navega, POSTea el review y '
       'oculta la acción tras calificar', (tester) async {
     String? reviewPath;
     Map<String, dynamic>? reviewPayload;
-    ApiClient.setClient(FakeClient((request) {
-      if (request.url.path == '/api/services/10/review/') {
-        reviewPath = request.url.path;
-        reviewPayload = jsonDecode(request.body) as Map<String, dynamic>;
+    ApiClient.setClient(
+      FakeClient((request) {
+        if (request.url.path == '/api/services/10/review/') {
+          reviewPath = request.url.path;
+          reviewPayload = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({
+              'message': 'Calificación registrada, ¡gracias!',
+              'review_id': 1,
+              'global_score': 4.7,
+              'technician_rating': 4.7,
+            }),
+            201,
+          );
+        }
+        if (request.url.path == '/api/services/my') {
+          return http.Response(
+            jsonEncode({
+              'requests': [
+                _summaryJson(
+                  id: 10,
+                  status: 'completed',
+                  technicianName: 'Carlos Tecnico',
+                ),
+              ],
+            }),
+            200,
+          );
+        }
         return http.Response(
-          jsonEncode({
-            'message': 'Calificación registrada, ¡gracias!',
-            'review_id': 1,
-            'global_score': 4.7,
-            'technician_rating': 4.7,
-          }),
-          201,
-        );
-      }
-      if (request.url.path == '/api/services/my') {
-        return http.Response(
-          jsonEncode({
-            'requests': [
-              _summaryJson(id: 10, status: 'completed', technicianName: 'Carlos Tecnico'),
-            ],
-          }),
+          jsonEncode(_detailJson(id: 10, status: 'completed')),
           200,
         );
-      }
-      return http.Response(
-        jsonEncode(_detailJson(id: 10, status: 'completed')),
-        200,
-      );
-    }));
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: ClientHistoryScreen()));
     await tester.pumpAndSettle();
@@ -378,20 +454,22 @@ void main() {
   });
 
   testWidgets('servicio sin completar NO ofrece calificar', (tester) async {
-    ApiClient.setClient(FakeClient((request) {
-      if (request.url.path == '/api/services/my') {
+    ApiClient.setClient(
+      FakeClient((request) {
+        if (request.url.path == '/api/services/my') {
+          return http.Response(
+            jsonEncode({
+              'requests': [_summaryJson(id: 10, status: 'in_progress')],
+            }),
+            200,
+          );
+        }
         return http.Response(
-          jsonEncode({
-            'requests': [_summaryJson(id: 10, status: 'in_progress')],
-          }),
+          jsonEncode(_detailJson(id: 10, status: 'in_progress')),
           200,
         );
-      }
-      return http.Response(
-        jsonEncode(_detailJson(id: 10, status: 'in_progress')),
-        200,
-      );
-    }));
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: ClientHistoryScreen()));
     await tester.pumpAndSettle();
@@ -399,5 +477,77 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Calificar servicio'), findsNothing);
+  });
+
+  testWidgets('tracking solo aparece para servicio en proceso asignado', (
+    tester,
+  ) async {
+    ApiClient.setClient(
+      FakeClient((request) {
+        if (request.url.path == '/api/services/my') {
+          return http.Response(
+            jsonEncode({
+              'requests': [_summaryJson(id: 10, status: 'in_progress')],
+            }),
+            200,
+          );
+        }
+        if (request.url.path == '/api/services/10') {
+          final detail = _detailJson(id: 10, status: 'in_progress');
+          detail['latitude'] = 7.8939;
+          detail['longitude'] = -72.5078;
+          return http.Response(jsonEncode(detail), 200);
+        }
+        return http.Response('', 404);
+      }),
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: ClientHistoryScreen()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nevera clásica'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ver ubicación del técnico'), findsOneWidget);
+    await tester.tap(find.text('Ver ubicación del técnico'));
+    await tester.pumpAndSettle();
+    expect(find.text('Rastreo del Técnico'), findsOneWidget);
+  });
+
+  testWidgets('muestra error visible cuando falla una acción de oferta', (
+    tester,
+  ) async {
+    ApiClient.setClient(
+      FakeClient((request) {
+        if (request.url.path == '/api/services/my') {
+          return http.Response(
+            jsonEncode({
+              'requests': [_summaryJson(id: 10, status: 'bidding')],
+            }),
+            200,
+          );
+        }
+        if (request.url.path == '/api/services/10/bids/3/accept') {
+          return http.Response(jsonEncode({'detail': 'falló'}), 500);
+        }
+        return http.Response(
+          jsonEncode(
+            _detailJson(id: 10, status: 'bidding', bidStatus: 'pending'),
+          ),
+          200,
+        );
+      }),
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: ClientHistoryScreen()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nevera clásica'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Aceptar oferta'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No se pudo aceptar la oferta. Reintenta.'),
+      findsOneWidget,
+    );
   });
 }

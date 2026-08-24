@@ -27,7 +27,7 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               // Cliente
               _RoleButton(
                 icon: Icons.person_outline,
@@ -38,13 +38,14 @@ class HomeScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const LoginScreen(mode: LoginMode.client),
+                      builder: (context) =>
+                          const LoginScreen(mode: LoginMode.client),
                     ),
                   );
                 },
               ),
               const SizedBox(height: 12),
-              
+
               // Técnico
               _RoleButton(
                 icon: Icons.handyman_outlined,
@@ -55,13 +56,14 @@ class HomeScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const LoginScreen(mode: LoginMode.technician),
+                      builder: (context) =>
+                          const LoginScreen(mode: LoginMode.technician),
                     ),
                   );
                 },
               ),
               const SizedBox(height: 16),
-              
+
               // Acceso Administrador (Discreto)
               TextButton(
                 onPressed: () {
@@ -69,13 +71,17 @@ class HomeScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const LoginScreen(mode: LoginMode.admin),
+                      builder: (context) =>
+                          const LoginScreen(mode: LoginMode.admin),
                     ),
                   );
                 },
                 child: Text(
                   'Acceso Administrador',
-                  style: TextStyle(color: Theme.of(context).hintColor, fontSize: 13),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -88,7 +94,6 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       body: SafeArea(
@@ -98,13 +103,13 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(),
-              
+
               // Logo e Identidad Visual (Estilo Premium Uber)
               Center(
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF111928) : const Color(0xFFF3F4F6),
+                    color: theme.colorScheme.surfaceContainerHighest,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -130,13 +135,13 @@ class HomeScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
-                  color: theme.hintColor,
+                  color: theme.colorScheme.onSurfaceVariant,
                   height: 1.4,
                 ),
               ),
-              
+
               const Spacer(),
-              
+
               // Botón Principal
               SizedBox(
                 height: 54,
@@ -177,15 +182,13 @@ class _RoleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF111928) : const Color(0xFFF3F4F6),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -198,12 +201,18 @@ class _RoleButton extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),

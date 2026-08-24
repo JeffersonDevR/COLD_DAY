@@ -34,16 +34,15 @@ Map<String, dynamic> _requestJson({
   String? myBidStatus,
   String equipment = 'Nevera clásica',
   String description = 'No enfría',
-}) =>
-    {
-      'id': id,
-      'equipment': equipment,
-      'description': description,
-      'latitude': 7.8939,
-      'longitude': -72.5078,
-      'status': status,
-      'my_bid_status': myBidStatus,
-    };
+}) => {
+  'id': id,
+  'equipment': equipment,
+  'description': description,
+  'latitude': 7.8939,
+  'longitude': -72.5078,
+  'status': status,
+  'my_bid_status': myBidStatus,
+};
 
 void main() {
   setUp(() {
@@ -55,23 +54,26 @@ void main() {
     });
   });
 
-  testWidgets('dashboard carga el radar real y muestra las solicitudes',
-      (tester) async {
-    ApiClient.setClient(FakeClient((request) {
-      expect(request.method, 'GET');
-      expect(request.url.path, '/api/technicians/requests/nearby/');
-      expect(request.url.queryParameters['radius_km'], '10.0');
-      expect(request.headers['Authorization'], 'Bearer tok-tech');
-      return http.Response(
-        jsonEncode({
-          'requests': [
-            _requestJson(id: 10, status: 'requested'),
-            _requestJson(id: 11, status: 'bidding'),
-          ],
-        }),
-        200,
-      );
-    }));
+  testWidgets('dashboard carga el radar real y muestra las solicitudes', (
+    tester,
+  ) async {
+    ApiClient.setClient(
+      FakeClient((request) {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/technicians/requests/nearby/');
+        expect(request.url.queryParameters['radius_km'], '10.0');
+        expect(request.headers['Authorization'], 'Bearer tok-tech');
+        return http.Response(
+          jsonEncode({
+            'requests': [
+              _requestJson(id: 10, status: 'requested'),
+              _requestJson(id: 11, status: 'bidding'),
+            ],
+          }),
+          200,
+        );
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: TechnicianDashboard()));
     await tester.pumpAndSettle();
@@ -83,11 +85,14 @@ void main() {
     expect(find.text('En oferta'), findsOneWidget);
   });
 
-  testWidgets('radar vacío muestra mensaje de área sin solicitudes',
-      (tester) async {
-    ApiClient.setClient(FakeClient((request) {
-      return http.Response(jsonEncode({'requests': []}), 200);
-    }));
+  testWidgets('radar vacío muestra mensaje de área sin solicitudes', (
+    tester,
+  ) async {
+    ApiClient.setClient(
+      FakeClient((request) {
+        return http.Response(jsonEncode({'requests': []}), 200);
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: TechnicianDashboard()));
     await tester.pumpAndSettle();
@@ -95,16 +100,19 @@ void main() {
     expect(find.text('No hay solicitudes cercanas'), findsOneWidget);
   });
 
-  testWidgets('solicitud sin oferta navega a la pantalla de oferta (bid)',
-      (tester) async {
-    ApiClient.setClient(FakeClient((request) {
-      return http.Response(
-        jsonEncode({
-          'requests': [_requestJson(id: 10, status: 'requested')],
-        }),
-        200,
-      );
-    }));
+  testWidgets('solicitud sin oferta navega a la pantalla de oferta (bid)', (
+    tester,
+  ) async {
+    ApiClient.setClient(
+      FakeClient((request) {
+        return http.Response(
+          jsonEncode({
+            'requests': [_requestJson(id: 10, status: 'requested')],
+          }),
+          200,
+        );
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: TechnicianDashboard()));
     await tester.pumpAndSettle();
@@ -116,68 +124,83 @@ void main() {
     expect(find.text('Enviar Oferta'), findsOneWidget);
   });
 
-  testWidgets('ciclo de oferta: enviar bid muestra "¡Oferta enviada!" y recarga',
-      (tester) async {
-    ApiClient.setClient(FakeClient((request) {
-      if (request.url.path == '/api/services/bids/') {
+  testWidgets(
+    'ciclo de oferta: enviar bid muestra "¡Oferta enviada!" y recarga',
+    (tester) async {
+      ApiClient.setClient(
+        FakeClient((request) {
+          if (request.url.path == '/api/services/bids/') {
+            return http.Response(
+              jsonEncode({'message': 'ok', 'bid_id': 9, 'status': 'pending'}),
+              201,
+            );
+          }
+          return http.Response(
+            jsonEncode({
+              'requests': [_requestJson(id: 10, status: 'requested')],
+            }),
+            200,
+          );
+        }),
+      );
+
+      await tester.pumpWidget(const MaterialApp(home: TechnicianDashboard()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Enviar oferta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Enviar oferta').last); // botón del formulario
+      await tester.pumpAndSettle();
+
+      // Volvió al dashboard con el SnackBar de éxito.
+      expect(find.text('¡Oferta enviada!'), findsOneWidget);
+      expect(find.byType(TechnicianDashboard), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'solicitud con oferta ya enviada no ofrece duplicar (RF-MATCH-005)',
+    (tester) async {
+      ApiClient.setClient(
+        FakeClient((request) {
+          return http.Response(
+            jsonEncode({
+              'requests': [
+                _requestJson(id: 10, status: 'bidding', myBidStatus: 'pending'),
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+
+      await tester.pumpWidget(const MaterialApp(home: TechnicianDashboard()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Oferta enviada'), findsOneWidget);
+      expect(find.text('Enviar oferta'), findsNothing);
+    },
+  );
+
+  testWidgets('solicitud en diagnóstico navega a la pantalla de diagnóstico', (
+    tester,
+  ) async {
+    ApiClient.setClient(
+      FakeClient((request) {
         return http.Response(
-          jsonEncode({'message': 'ok', 'bid_id': 9, 'status': 'pending'}),
-          201,
+          jsonEncode({
+            'requests': [
+              _requestJson(
+                id: 12,
+                status: 'diagnosis',
+                myBidStatus: 'accepted',
+              ),
+            ],
+          }),
+          200,
         );
-      }
-      return http.Response(
-        jsonEncode({
-          'requests': [_requestJson(id: 10, status: 'requested')],
-        }),
-        200,
-      );
-    }));
-
-    await tester.pumpWidget(const MaterialApp(home: TechnicianDashboard()));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Enviar oferta'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Enviar oferta').last); // botón del formulario
-    await tester.pumpAndSettle();
-
-    // Volvió al dashboard con el SnackBar de éxito.
-    expect(find.text('¡Oferta enviada!'), findsOneWidget);
-    expect(find.byType(TechnicianDashboard), findsOneWidget);
-  });
-
-  testWidgets('solicitud con oferta ya enviada no ofrece duplicar (RF-MATCH-005)',
-      (tester) async {
-    ApiClient.setClient(FakeClient((request) {
-      return http.Response(
-        jsonEncode({
-          'requests': [
-            _requestJson(id: 10, status: 'bidding', myBidStatus: 'pending'),
-          ],
-        }),
-        200,
-      );
-    }));
-
-    await tester.pumpWidget(const MaterialApp(home: TechnicianDashboard()));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Oferta enviada'), findsOneWidget);
-    expect(find.text('Enviar oferta'), findsNothing);
-  });
-
-  testWidgets('solicitud en diagnóstico navega a la pantalla de diagnóstico',
-      (tester) async {
-    ApiClient.setClient(FakeClient((request) {
-      return http.Response(
-        jsonEncode({
-          'requests': [
-            _requestJson(id: 12, status: 'diagnosis', myBidStatus: 'accepted'),
-          ],
-        }),
-        200,
-      );
-    }));
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: TechnicianDashboard()));
     await tester.pumpAndSettle();
@@ -188,18 +211,25 @@ void main() {
     expect(find.text('Diagnóstico'), findsOneWidget);
   });
 
-  testWidgets('solicitud con pacto pendiente navega a proponer pacto',
-      (tester) async {
-    ApiClient.setClient(FakeClient((request) {
-      return http.Response(
-        jsonEncode({
-          'requests': [
-            _requestJson(id: 13, status: 'pact_proposed', myBidStatus: 'accepted'),
-          ],
-        }),
-        200,
-      );
-    }));
+  testWidgets('solicitud con pacto pendiente navega a proponer pacto', (
+    tester,
+  ) async {
+    ApiClient.setClient(
+      FakeClient((request) {
+        return http.Response(
+          jsonEncode({
+            'requests': [
+              _requestJson(
+                id: 13,
+                status: 'pact_proposed',
+                myBidStatus: 'accepted',
+              ),
+            ],
+          }),
+          200,
+        );
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: TechnicianDashboard()));
     await tester.pumpAndSettle();
@@ -210,8 +240,9 @@ void main() {
     expect(find.text('Proponer Pacto'), findsOneWidget);
   });
 
-  testWidgets('solicitud en proceso se finaliza con confirmación',
-      (tester) async {
+  testWidgets('solicitud en proceso se finaliza con confirmación', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({
       'auth.access_token': 'tok-tech',
       'auth.refresh_token': 'refresh-tech',
@@ -220,24 +251,34 @@ void main() {
     });
 
     String? completedPath;
-    ApiClient.setClient(FakeClient((request) {
-      if (request.url.path == '/api/services/12/complete') {
-        completedPath = request.url.path;
-        expect(request.headers['Authorization'], 'Bearer tok-tech');
+    ApiClient.setClient(
+      FakeClient((request) {
+        if (request.url.path == '/api/services/12/complete') {
+          completedPath = request.url.path;
+          expect(request.headers['Authorization'], 'Bearer tok-tech');
+          return http.Response(
+            jsonEncode({
+              'message': 'Servicio completado',
+              'request_id': 12,
+              'status': 'completed',
+            }),
+            200,
+          );
+        }
         return http.Response(
-          jsonEncode({'message': 'Servicio completado', 'request_id': 12, 'status': 'completed'}),
+          jsonEncode({
+            'requests': [
+              _requestJson(
+                id: 12,
+                status: 'in_progress',
+                myBidStatus: 'accepted',
+              ),
+            ],
+          }),
           200,
         );
-      }
-      return http.Response(
-        jsonEncode({
-          'requests': [
-            _requestJson(id: 12, status: 'in_progress', myBidStatus: 'accepted'),
-          ],
-        }),
-        200,
-      );
-    }));
+      }),
+    );
 
     await tester.pumpWidget(const MaterialApp(home: TechnicianDashboard()));
     await tester.pumpAndSettle();

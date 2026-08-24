@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:cold_day_flutter/core/network/token_store.dart';
 import 'package:cold_day_flutter/features/auth/auth_router.dart';
+import 'package:cold_day_flutter/core/theme/app_theme.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,51 +16,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Cold Day ❄️',
       themeMode: ThemeMode.system,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: const Color(0xFFF9FAFB),
-        colorScheme: const ColorScheme.light(
-          primary: Color(0xFF0284C7),
-          onPrimary: Colors.white,
-          surface: Colors.white,
-          onSurface: Color(0xFF0F172A),
-        ),
-        textTheme: const TextTheme(
-          bodyMedium: TextStyle(color: Color(0xFF0F172A)),
-          bodySmall: TextStyle(color: Color(0xFF334155)),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF075985),
-          foregroundColor: Colors.white,
-        ),
-        disabledColor: Color(0xFF64748B),
-        filledButtonTheme: FilledButtonThemeData(
-          style: ButtonStyle(
-            foregroundColor: WidgetStatePropertyAll(Colors.white),
-          ),
-        ),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF080F1E),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF5BC8F5),
-          onPrimary: Color(0xFF080F1E),
-          surface: Color(0xFF111928),
-          onSurface: Colors.white,
-        ),
-        textTheme: const TextTheme(
-          bodyMedium: TextStyle(color: Colors.white),
-          bodySmall: TextStyle(color: Color(0xFFCBD5E1)),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0C4A6E),
-          foregroundColor: Colors.white,
-        ),
-        disabledColor: Color(0xFFCBD5E1),
-        useMaterial3: true,
-      ),
+      theme: buildAppTheme(Brightness.light),
+      darkTheme: buildAppTheme(Brightness.dark),
       home: const AuthGate(),
       debugShowCheckedModeBanner: false,
     );

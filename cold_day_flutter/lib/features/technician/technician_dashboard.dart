@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+
 import 'package:cold_day_flutter/core/network/api_client.dart';
 import 'package:cold_day_flutter/core/network/token_store.dart';
+import 'package:cold_day_flutter/core/widgets/app_widgets.dart';
 import 'package:cold_day_flutter/features/home/home_screen.dart';
+import 'package:cold_day_flutter/features/radar/technician_map_screen.dart';
 import 'package:cold_day_flutter/features/request/request_status.dart';
 import 'package:cold_day_flutter/features/technician/bid_submission_screen.dart';
 import 'package:cold_day_flutter/features/technician/diagnosis_screen.dart';
 import 'package:cold_day_flutter/features/technician/pact_proposal_screen.dart';
 import 'package:cold_day_flutter/features/technician/service_config_screen.dart';
-import 'package:cold_day_flutter/features/radar/technician_map_screen.dart';
 
-/// Dashboard del técnico (HU-SR-002): radar real de solicitudes cercanas
-/// (RF-MATCH-004) con acciones según el estado de cada solicitud:
-/// ofertar (requested/bidding sin bid), registrar diagnóstico (diagnosis),
-/// proponer pacto (pact_proposed) y finalizar servicio (in_progress).
 class TechnicianDashboard extends StatefulWidget {
   const TechnicianDashboard({super.key});
 
@@ -22,420 +21,387 @@ class TechnicianDashboard extends StatefulWidget {
 
 class _TechnicianDashboardState extends State<TechnicianDashboard> {
   List<Map<String, dynamic>> _requests = [];
+  Map<String, dynamic>? _active;
   bool _loading = true;
   String? _error;
+  bool _publishingLocation = false;
 
   @override
   void initState() {
     super.initState();
-    _loadRadar();
+    _load();
   }
 
-  Future<void> _loadRadar() async {
+  Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
       final requests = await ApiClient.fetchTechnicianRadar();
-      if (!mounted) return;
-      setState(() => _requests = requests);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = 'No se pudo cargar el radar: $e');
+      Map<String, dynamic>? active;
+      try {
+        active = await ApiClient.fetchTechnicianActiveService();
+      } catch (_) {
+        // Keep the radar usable when an older dev server lacks this additive endpoint.
+      }
+      if (mounted)
+        setState(() {
+          _requests = requests;
+          _active = active;
+        });
+    } catch (error) {
+      if (mounted)
+        setState(
+          () => _error = ApiClient.userFacingError(
+            error,
+            action: 'cargar tu panel',
+          ),
+        );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _showMessage(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  void _message(String text) {
+    if (mounted)
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
-  Future<void> _openOffer(Map<String, dynamic> request) async {
-    final submitted = await Navigator.push<bool>(
+  Future<void> _publishLocation() async {
+    final requestId = _active?['id'] as int?;
+    if (requestId == null) return;
+    if (_publishingLocation) return;
+    setState(() => _publishingLocation = true);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        _message(
+          'Activá la ubicación del dispositivo para actualizar tu posición.',
+        );
+        return;
+      }
+      if (!mounted) return;
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied)
+        permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _message('Necesitás permitir la ubicación para informar tu avance.');
+        return;
+      }
+      if (!mounted) return;
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      if (!mounted) return;
+      if (!position.latitude.isFinite ||
+          !position.longitude.isFinite ||
+          position.latitude < -90 ||
+          position.latitude > 90 ||
+          position.longitude < -180 ||
+          position.longitude > 180) {
+        _message('El dispositivo devolvió una ubicación inválida.');
+        return;
+      }
+      await ApiClient.sendLocation(
+        requestId: requestId,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+      _message('Ubicación actualizada');
+    } catch (error) {
+      _message(
+        ApiClient.userFacingError(error, action: 'actualizar tu ubicación'),
+      );
+    } finally {
+      if (mounted) setState(() => _publishingLocation = false);
+    }
+  }
+
+  Future<void> _offer(Map<String, dynamic> request) async {
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) => BidSubmissionScreen(
+        builder: (_) => BidSubmissionScreen(
           requestId: request['id'] as int,
           equipment: request['equipment'] as String? ?? 'Solicitud',
         ),
       ),
     );
-    if (submitted == true) {
-      _showMessage('¡Oferta enviada!');
-      _loadRadar();
+    if (result == true) {
+      _message('¡Oferta enviada!');
+      _load();
     }
   }
 
-  Future<void> _openDiagnosis(Map<String, dynamic> request) async {
-    final done = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DiagnosisScreen(requestId: request['id'] as int),
-      ),
-    );
-    if (done == true) {
-      _showMessage('Diagnóstico registrado');
-      _loadRadar();
+  Future<void> _action(Map<String, dynamic> request, String status) async {
+    final id = request['id'] as int;
+    if (status == 'diagnosis')
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => DiagnosisScreen(requestId: id)),
+      );
+    if (!mounted) return;
+    if (status == 'pact_proposed')
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => PactProposalScreen(requestId: id)),
+      );
+    if (!mounted) return;
+    if (status == 'in_progress') {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Finalizar servicio'),
+          content: const Text('¿Finalizar el servicio?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Finalizar'),
+            ),
+          ],
+        ),
+      );
+      if (confirm == true) {
+        await ApiClient.completeServiceRequest(requestId: id);
+        if (!mounted) return;
+        _message('Servicio completado');
+      }
+    }
+    _load();
+  }
+
+  void _requestAction(Map<String, dynamic> request) {
+    final status = request['status'] as String? ?? '';
+    if (status == 'requested' || status == 'bidding') {
+      _offer(request);
+    } else {
+      _action(request, status);
     }
   }
 
-  Future<void> _openPact(Map<String, dynamic> request) async {
-    final proposed = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            PactProposalScreen(requestId: request['id'] as int),
-      ),
-    );
-    if (proposed == true) {
-      _showMessage('Pacto de servicio propuesto al cliente');
-      _loadRadar();
+  Future<void> _logout() async {
+    final token = await TokenStore.readRefreshToken();
+    if (token != null) {
+      try {
+        await ApiClient.logout(token);
+      } catch (_) {}
     }
-  }
-
-  Future<void> _complete(Map<String, dynamic> request) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Finalizar servicio'),
-        content: const Text('¿Finalizar el servicio?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Finalizar'),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true || !mounted) return;
-
-    try {
-      await ApiClient.completeServiceRequest(requestId: request['id'] as int);
-      _showMessage('Servicio completado');
-      _loadRadar();
-    } catch (e) {
-      _showMessage('Error al finalizar el servicio: $e');
-    }
+    await TokenStore.clear();
+    if (mounted)
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (_) => false,
+      );
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Radar de Solicitudes'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ServiceConfigScreen(),
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Panel del técnico'),
+      actions: [
+        IconButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ServiceConfigScreen()),
+          ),
+          icon: const Icon(Icons.settings),
+          tooltip: 'Configurar servicios',
+        ),
+        IconButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const TechnicianMapScreen()),
+          ),
+          icon: const Icon(Icons.map_outlined),
+          tooltip: 'Abrir radar',
+        ),
+        IconButton(
+          onPressed: _loading ? null : _load,
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Actualizar',
+        ),
+        IconButton(
+          onPressed: _logout,
+          icon: const Icon(Icons.logout),
+          tooltip: 'Cerrar sesión',
+        ),
+      ],
+    ),
+    body: _body(),
+  );
+
+  Widget _body() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null)
+      return AsyncStateView(
+        icon: Icons.cloud_off,
+        message: _error!,
+        action: _load,
+      );
+    final newRequests = _requests;
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Tu jornada', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 4),
+          Text(
+            'Encontrá oportunidades y seguí tus servicios activos.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 20),
+          SectionHeader(
+            title: 'Servicio activo',
+            subtitle: 'Seguimiento de tu trabajo en curso',
+          ),
+          const SizedBox(height: 8),
+          _active == null
+              ? const AppCard(
+                  child: Text('No tenés servicios activos en este momento.'),
+                )
+              : _RequestCard(
+                  request: _active!,
+                  onAction: () => _action(_active!, 'in_progress'),
+                  onLocation: _publishLocation,
+                  locationLoading: _publishingLocation,
                 ),
-              );
-            },
-            icon: const Icon(Icons.settings),
-            tooltip: 'Mis servicios',
+          const SizedBox(height: 24),
+          SectionHeader(
+            title: 'Nuevas solicitudes',
+            subtitle: '${newRequests.length} oportunidades cercanas',
           ),
-          IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const TechnicianMapScreen()),
+          const SizedBox(height: 8),
+          if (newRequests.isEmpty)
+            const AppCard(child: Text('No hay solicitudes cercanas'))
+          else
+            ...newRequests.map(
+              (request) => _RequestCard(
+                request: request,
+                onAction: () => _requestAction(request),
+              ),
             ),
-            icon: const Icon(Icons.map_outlined),
-            tooltip: 'Ver mapa',
+          const SizedBox(height: 24),
+          SectionHeader(
+            title: 'Resumen',
+            subtitle: 'Actividad disponible en el radar',
           ),
-          IconButton(
-            onPressed: _loading ? null : _loadRadar,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Actualizar radar',
-          ),
-          IconButton(
-            tooltip: 'Cerrar sesión',
-            onPressed: () async {
-              final refresh = await TokenStore.readRefreshToken();
-              if (refresh != null) {
-                try {
-                  await ApiClient.logout(refresh);
-                } catch (_) {}
-              }
-              await TokenStore.clear();
-              if (!context.mounted) return;
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const HomeScreen()),
-                (_) => false,
-              );
-            },
-            icon: const Icon(Icons.logout),
+          const SizedBox(height: 8),
+          AppCard(
+            child: Row(
+              children: [
+                Icon(
+                  Icons.near_me,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '${newRequests.length} solicitudes en tu radio actual',
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFE3F2FD), Colors.white],
-          ),
-        ),
-        child: _buildBody(),
-      ),
-    );
-  }
-
-  Widget _buildBody() {
-    if (_loading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: Colors.blueAccent),
-            SizedBox(height: 16),
-            Text('Cargando solicitudes cercanas...'),
-          ],
-        ),
-      );
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.cloud_off, size: 56, color: Colors.grey),
-              const SizedBox(height: 12),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: _loadRadar,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_requests.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.radar, size: 56, color: Colors.grey),
-            SizedBox(height: 12),
-            Text(
-              'No hay solicitudes cercanas',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'Las nuevas solicitudes aparecen aquí',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      itemCount: _requests.length,
-      itemBuilder: (context, index) => _RequestCard(
-        request: _requests[index],
-        onOffer: () => _openOffer(_requests[index]),
-        onDiagnosis: () => _openDiagnosis(_requests[index]),
-        onPact: () => _openPact(_requests[index]),
-        onComplete: () => _complete(_requests[index]),
       ),
     );
   }
 }
 
 class _RequestCard extends StatelessWidget {
-  final Map<String, dynamic> request;
-  final VoidCallback onOffer;
-  final VoidCallback onDiagnosis;
-  final VoidCallback onPact;
-  final VoidCallback onComplete;
-
   const _RequestCard({
     required this.request,
-    required this.onOffer,
-    required this.onDiagnosis,
-    required this.onPact,
-    required this.onComplete,
+    required this.onAction,
+    this.onLocation,
+    this.locationLoading = false,
   });
+  final Map<String, dynamic> request;
+  final VoidCallback onAction;
+  final VoidCallback? onLocation;
+  final bool locationLoading;
 
   @override
   Widget build(BuildContext context) {
-    final id = request['id'] as int;
-    final status = request['status'] as String;
-    final myBidStatus = request['my_bid_status'] as String?;
-    final equipment = request['equipment'] as String? ?? 'Solicitud';
-    final description = request['description'] as String? ?? '';
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: Colors.blueAccent,
-                  child: Text(
-                    '#$id',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+    final status = request['status'] as String? ?? '';
+    final bidPending = request['my_bid_status'] == 'pending';
+    final label = bidPending
+        ? 'Oferta enviada'
+        : status == 'in_progress'
+        ? 'Finalizar servicio'
+        : status == 'requested' || status == 'bidding'
+        ? 'Enviar oferta'
+        : status == 'diagnosis'
+        ? 'Registrar diagnóstico'
+        : status == 'pact_proposed'
+        ? 'Proponer pacto'
+        : requestStatusLabel(status);
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 230),
+                child: Text(
+                  request['equipment'] as String? ?? 'Solicitud',
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        equipment,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        requestStatusLabel(status),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.blueGrey.shade700,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (description.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(description, style: const TextStyle(color: Colors.grey)),
+              ),
+              StatusBadge(
+                label: bidPending
+                    ? 'Oferta enviada'
+                    : requestStatusLabel(status),
+              ),
             ],
+          ),
+          if ((request['description'] as String? ?? '').isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
-              'Lat: ${request['latitude']}, Lon: ${request['longitude']}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              request['description'] as String,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 12),
-            _buildAction(context, status, myBidStatus),
           ],
-        ),
+          const SizedBox(height: 12),
+          if (onLocation != null) ...[
+            if (!bidPending)
+              SizedBox(
+                width: double.infinity,
+                child: AppButton(
+                  label: locationLoading
+                      ? 'Publicando ubicación...'
+                      : 'Actualizar ubicación',
+                  icon: Icons.my_location,
+                  onPressed: locationLoading ? null : onLocation,
+                ),
+              ),
+            const SizedBox(height: 8),
+          ],
+          if (!bidPending)
+            SizedBox(
+              width: double.infinity,
+              child: AppButton(
+                label: label,
+                icon: Icons.arrow_forward,
+                onPressed: onAction,
+              ),
+            ),
+        ],
       ),
     );
-  }
-
-  Widget _buildAction(
-    BuildContext context,
-    String status,
-    String? myBidStatus,
-  ) {
-    // Oferta ya enviada: no se permite duplicar (RF-MATCH-005).
-    if (myBidStatus == 'pending') {
-      return const Chip(
-        avatar: Icon(Icons.hourglass_top, size: 18),
-        label: Text('Oferta enviada'),
-        backgroundColor: Colors.amber,
-      );
-    }
-
-    switch (status) {
-      case 'requested':
-      case 'bidding':
-        return SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.green.shade600,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: onOffer,
-            icon: const Icon(Icons.handshake),
-            label: const Text('Enviar oferta'),
-          ),
-        );
-      case 'diagnosis':
-        return SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.blueAccent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: onDiagnosis,
-            icon: const Icon(Icons.assignment_turned_in),
-            label: const Text('Registrar diagnóstico'),
-          ),
-        );
-      case 'pact_proposed':
-        return SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.blueAccent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: onPact,
-            icon: const Icon(Icons.description),
-            label: const Text('Proponer pacto'),
-          ),
-        );
-      case 'in_progress':
-        return SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.teal.shade600,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: onComplete,
-            icon: const Icon(Icons.check_circle),
-            label: const Text('Finalizar servicio'),
-          ),
-        );
-      default:
-        // completed / cancelled: estado terminal, sin acción.
-        return const SizedBox.shrink();
-    }
   }
 }

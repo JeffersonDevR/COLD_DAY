@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cold_day_flutter/core/network/api_client.dart';
-import 'package:cold_day_flutter/features/radar/technician_radar_screen.dart';
+import 'package:cold_day_flutter/features/request/client_history_screen.dart';
 
 class ServiceRequestScreen extends StatefulWidget {
   final int equipmentId;
@@ -29,8 +29,8 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
 
   // Coordenadas por defecto: Cúcuta, Colombia (Nodo Tecnoparque)
   // Se reemplazan con el GPS real cuando el usuario toca "Usar mi ubicación".
-  double currentLat = 7.8939;
-  double currentLon = -72.5078;
+  double? currentLat;
+  double? currentLon;
 
   Future<void> _useGpsLocation() async {
     setState(() => locating = true);
@@ -38,7 +38,9 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     try {
       // 1. Verificar que el GPS esté activado
       if (!await Geolocator.isLocationServiceEnabled()) {
-        _showMessage('El GPS está desactivado. Activá la ubicación del dispositivo.');
+        _showMessage(
+          'El GPS está desactivado. Activá la ubicación del dispositivo.',
+        );
         return;
       }
 
@@ -48,7 +50,9 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.denied) {
-        _showMessage('Permiso de ubicación denegado. No podemos usar tu posición.');
+        _showMessage(
+          'Permiso de ubicación denegado. No podemos usar tu posición.',
+        );
         return;
       }
       if (permission == LocationPermission.deniedForever) {
@@ -88,6 +92,10 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
       _showMessage('Por favor describe el problema o servicio');
       return;
     }
+    if (currentLat == null || currentLon == null) {
+      _showMessage('Indica tu ubicación actual antes de crear la solicitud.');
+      return;
+    }
 
     setState(() => isLoading = true);
 
@@ -95,28 +103,37 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
       final budget = double.tryParse(_budgetController.text);
 
       // RF-SR-001: el dueño sale del token autenticado, no de un userId hardcoded.
-      final result = await ApiClient.createServiceRequest(
+      await ApiClient.createServiceRequest(
         equipmentId: widget.equipmentId,
         serviceType: widget.serviceType,
         description: _descriptionController.text,
-        latitude: currentLat,
-        longitude: currentLon,
+        latitude: currentLat!,
+        longitude: currentLon!,
         budgetOffered: budget,
       );
 
-      final requestId = result['request_id'];
-
       if (!mounted) return;
-
-      // Navegar al Radar con las coordenadas reales
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => TechnicianRadarScreen(
-            requestId: requestId,
-            latitude: currentLat,
-            longitude: currentLon,
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Solicitud creada'),
+          content: const Text(
+            'Revisa las ofertas y avances desde Mis servicios.',
           ),
+          actions: [
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ClientHistoryScreen(),
+                  ),
+                );
+              },
+              child: const Text('Ver Mis servicios'),
+            ),
+          ],
         ),
       );
     } catch (e) {
@@ -124,6 +141,13 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    _budgetController.dispose();
+    super.dispose();
   }
 
   @override
@@ -157,7 +181,9 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.blueAccent.withValues(alpha: 0.3)),
+                side: BorderSide(
+                  color: Colors.blueAccent.withValues(alpha: 0.3),
+                ),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -180,7 +206,10 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
                           visualDensity: VisualDensity.compact,
                         ),
                         Chip(
-                          label: Text(serviceLabel, style: const TextStyle(fontSize: 12)),
+                          label: Text(
+                            serviceLabel,
+                            style: const TextStyle(fontSize: 12),
+                          ),
                           backgroundColor: Colors.green.shade50,
                           visualDensity: VisualDensity.compact,
                         ),
@@ -218,7 +247,9 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: 'Ej. El aire acondicionado no enfría y bota agua...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 filled: true,
                 fillColor: Colors.white,
               ),
@@ -236,7 +267,9 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
               decoration: InputDecoration(
                 hintText: 'Ej. 80000 (COP)',
                 prefixText: '\$ ',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 filled: true,
                 fillColor: Colors.white,
               ),
@@ -256,11 +289,15 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
                   children: [
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.location_on, color: Colors.redAccent),
+                      leading: const Icon(
+                        Icons.location_on,
+                        color: Colors.redAccent,
+                      ),
                       title: const Text('Ubicación del servicio'),
                       subtitle: Text(
-                        'Lat: ${currentLat.toStringAsFixed(5)}, '
-                        'Lon: ${currentLon.toStringAsFixed(5)}',
+                        currentLat == null
+                            ? 'Aún no definida. Obtén tu ubicación por GPS.'
+                            : 'Ubicación actual obtenida por GPS',
                       ),
                     ),
                     SizedBox(
@@ -285,7 +322,9 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
                               )
                             : const Icon(Icons.my_location),
                         label: Text(
-                          locating ? 'Obteniendo ubicación...' : 'Usar mi ubicación actual',
+                          locating
+                              ? 'Obteniendo ubicación...'
+                              : 'Usar mi ubicación actual',
                         ),
                       ),
                     ),
@@ -317,7 +356,10 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
                     : const Icon(Icons.radar),
                 label: Text(
                   isLoading ? 'Lanzando solicitud...' : 'Lanzar al Radar',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),

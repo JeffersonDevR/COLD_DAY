@@ -58,6 +58,17 @@ class ApiClient {
     );
   }
 
+  static String userFacingError(Object error, {required String action}) {
+    final text = '$error';
+    if (text.contains('(403)')) {
+      return 'No tenés acceso a $action. Verificá que tu cuenta de técnico esté verificada o iniciá sesión de nuevo.';
+    }
+    if (text.contains('No hay sesión activa')) {
+      return 'Tu sesión venció. Iniciá sesión de nuevo para $action.';
+    }
+    return 'No se pudo $action. Revisá tu conexión e intentá nuevamente.';
+  }
+
   static Map<String, String> _jsonHeaders() => {
     "Content-Type": "application/json",
   };
@@ -255,8 +266,22 @@ class ApiClient {
         .get(url, headers: await _authedHeaders())
         .timeout(_timeout);
     final body = await _decodeOrThrow(response, "Error al cargar el radar");
-    final requests = body['requests'] as List<dynamic>? ?? [];
-    return requests.map((item) => item as Map<String, dynamic>).toList();
+    final requests = body['requests'];
+    if (requests is! List) return [];
+    return requests.whereType<Map<String, dynamic>>().toList();
+  }
+
+  static Future<Map<String, dynamic>?> fetchTechnicianActiveService() async {
+    final url = Uri.parse('$baseUrl/technicians/me/active-service');
+    final response = await _client
+        .get(url, headers: await _authedHeaders())
+        .timeout(_timeout);
+    final body = await _decodeOrThrow(
+      response,
+      'Error al cargar el servicio activo',
+    );
+    final service = body['service'];
+    return service is Map<String, dynamic> ? service : null;
   }
 
   /// RF-SR-004: el técnico asignado registra las observaciones del diagnóstico.
@@ -503,7 +528,7 @@ class ApiClient {
     final services = decoded is List
         ? decoded
         : (decoded as Map<String, dynamic>)['services'] as List<dynamic>? ?? [];
-    return services.map((item) => item as Map<String, dynamic>).toList();
+    return services.whereType<Map<String, dynamic>>().toList();
   }
 
   static Future<Map<String, dynamic>> addMyService({

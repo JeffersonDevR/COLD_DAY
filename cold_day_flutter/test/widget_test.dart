@@ -125,6 +125,10 @@ void main() {
     await tester.tap(find.text('Buscar técnicos'), warnIfMissed: false);
     await tester.pumpAndSettle();
 
-    expect(find.text('Mi Historial'), findsOneWidget);
+    // A request cannot be sent with an implicit demo coordinate.
+    expect(
+      find.text('Indica tu ubicación actual antes de crear la solicitud.'),
+      findsOneWidget,
+    );
   });
 }
