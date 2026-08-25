@@ -13,6 +13,8 @@ import 'package:cold_day_flutter/features/auth/login_screen.dart';
 import 'package:cold_day_flutter/features/request/simple_request_screen.dart';
 import 'package:cold_day_flutter/features/equipment/equipment_selection_screen.dart';
 import 'package:cold_day_flutter/features/technician/technician_dashboard.dart';
+import 'package:cold_day_flutter/features/admin/admin_dashboard_screen.dart';
+import 'package:cold_day_flutter/core/network/token_store.dart';
 
 class FakeApiClient extends http.BaseClient {
   final http.Response Function(http.Request request) onRequest;
@@ -153,5 +155,77 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(EquipmentSelectionScreen), findsOneWidget);
+  });
+
+  testWidgets('login con rol distinto al modo no guarda sesión ni navega', (
+    WidgetTester tester,
+  ) async {
+    ApiClient.setClient(
+      FakeApiClient((request) {
+        return http.Response(
+          jsonEncode({
+            'access_token': 'access-technician',
+            'refresh_token': 'refresh-technician',
+            'role': 'technician',
+            'user_id': 2,
+          }),
+          200,
+        );
+      }),
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(home: LoginScreen(mode: LoginMode.client)),
+    );
+    await tester.enterText(
+      find.byKey(const Key('login_document')),
+      '3000000001',
+    );
+    await tester.enterText(
+      find.byKey(const Key('login_password')),
+      'PilotoCold456',
+    );
+    await tester.tap(find.text('Ingresar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Documento o contraseña incorrectos.'), findsOneWidget);
+    expect(find.byType(EquipmentSelectionScreen), findsNothing);
+    expect(find.byType(TechnicianDashboard), findsNothing);
+    expect(await TokenStore.hasSession(), isFalse);
+  });
+
+  testWidgets('login exitoso como admin navega al dashboard admin', (
+    WidgetTester tester,
+  ) async {
+    ApiClient.setClient(
+      FakeApiClient((request) {
+        return http.Response(
+          jsonEncode({
+            'access_token': 'access-admin',
+            'refresh_token': 'refresh-admin',
+            'role': 'admin',
+            'user_id': 9,
+          }),
+          200,
+        );
+      }),
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(home: LoginScreen(mode: LoginMode.admin)),
+    );
+    await tester.enterText(
+      find.byKey(const Key('login_document')),
+      '1000000001',
+    );
+    await tester.enterText(
+      find.byKey(const Key('login_password')),
+      'AdminPiloto123',
+    );
+    await tester.tap(find.text('Ingresar'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AdminDashboardScreen), findsOneWidget);
+    expect(await TokenStore.readRole(), 'admin');
   });
 }

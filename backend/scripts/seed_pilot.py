@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Seed piloto idempotente (S6 mvp-polish, RF-AUTH-008 / RF-PILOT-003).
 
-Crea exactamente: 5 clientes + 5 técnicos (pending) + 1 admin. Re-ejecutable:
+Crea los clientes y técnicos definidos abajo, más 1 admin y el catálogo MVP. Re-ejecutable:
 la segunda corrida no duplica nada (los documentos son fijos y únicos).
 A diferencia de seed_admin.py (PR1), NO corre create_all: el esquema lo
 gobierna Alembic (RF-PILOT-001) — ejecutar `alembic upgrade head` primero.
@@ -28,7 +28,16 @@ from sqlalchemy import delete, select  # noqa: E402
 
 from app.core.database import AsyncSessionLocal
 from app.core.security import hash_password
-from app.models.service import Technician
+from app.models.service import (
+    Equipment,
+    EquipmentCategory,
+    LocationUpdate,
+    Review,
+    ServiceAgreement,
+    ServiceRequest,
+    Technician,
+    TechnicianBid,
+)
 from app.models.user import AuthToken, User
 
 # Ubicación del piloto: Cúcuta (Colombia), con offsets para que el radar
@@ -36,16 +45,83 @@ from app.models.user import AuthToken, User
 CUCUTA_LAT, CUCUTA_LON = 7.8939, -72.5078
 
 CLIENT_DOCS = [f"200000000{i}" for i in range(1, 6)]
-TECHNICIAN_DOCS = [f"300000000{i}" for i in range(1, 6)]
-ADMIN_DOC = "1000000001"
-SEED_DOCS = [*CLIENT_DOCS, *TECHNICIAN_DOCS, ADMIN_DOC]
-
 TECHNICIAN_DATA = [
     ("3000000001", "Ana Teresa Ruiz", "Neveras", 7.8939, -72.5078),
     ("3000000002", "Carlos Mendoza", "Aire acondicionado", 7.8980, -72.5100),
     ("3000000003", "Luis Fernando Paez", "Cuartos fríos", 7.8900, -72.5000),
     ("3000000004", "Martha Cecilia Diaz", "Electricidad", 7.8950, -72.5150),
     ("3000000005", "Jorge Eduardo Rojas", "Lavadoras", 7.8880, -72.5050),
+]
+TECHNICIAN_DOCS = [entry[0] for entry in TECHNICIAN_DATA]
+ADMIN_DOC = "1000000001"
+SEED_DOCS = [*CLIENT_DOCS, *TECHNICIAN_DOCS, ADMIN_DOC]
+
+# Names are the ownership key for this additive seed. Existing rows with the
+# same name are preserved, including their icon/technology metadata.
+CATALOG_DATA = [
+    {
+        "name": "Neveras",
+        "icon": "kitchen",
+        "technologies": ["conventional", "inverter"],
+        "equipment": [
+            ("residential", "Nevera clásica", "Nevera convencional"),
+            ("residential", "Nevera inverter", "Nevera inverter"),
+            ("industrial", "Nevera comercial", "Nevera comercial / vitrina"),
+        ],
+    },
+    {
+        "name": "Cuartos fríos",
+        "icon": "snow",
+        "technologies": ["conventional", "inverter"],
+        "equipment": [("industrial", "Cámara de frío", "Cámara para conservación")],
+    },
+    {
+        "name": "Aire acondicionado",
+        "icon": "air_wave",
+        "technologies": ["conventional", "inverter"],
+        "equipment": [
+            ("residential", "Split", "Aire acondicionado split residencial"),
+            ("residential", "Ventana", "Aire acondicionado de ventana"),
+            ("industrial", "Cassette", "Aire acondicionado cassette"),
+            ("industrial", "Chiller", "Sistema de agua helada"),
+        ],
+    },
+    {
+        "name": "Lavadoras",
+        "icon": "laundry",
+        "technologies": ["conventional", "inverter"],
+        "equipment": [
+            ("residential", "Lavadora doméstica", "Lavadora de uso doméstico"),
+            ("industrial", "Lavadora industrial", "Lavadora de uso industrial"),
+        ],
+    },
+    {
+        "name": "Electricidad",
+        "icon": "electricity",
+        "technologies": [],
+        "equipment": [
+            ("residential", "Electricidad residencial", "Instalación y reparación"),
+            ("industrial", "Electricidad industrial", "Instalación y reparación"),
+        ],
+    },
+    {
+        "name": "Electrónica",
+        "icon": "devices",
+        "technologies": [],
+        "equipment": [
+            ("residential", "TV y audio", "Electrónica de hogar"),
+            ("industrial", "Electrónica industrial", "Electrónica de uso industrial"),
+        ],
+    },
+    {
+        "name": "Instalación de cámaras",
+        "icon": "videocam",
+        "technologies": [],
+        "equipment": [
+            ("residential", "Cámaras CCTV", "Instalación de cámaras"),
+            ("industrial", "Cámaras CCTV", "Instalación de cámaras"),
+        ],
+    },
 ]
 
 PILOT_PASSWORD = "PilotoCold456"  # cumple la política (may/min/dígito, >=8)
@@ -59,6 +135,10 @@ class SeedSummary:
     technicians_existing: int = 0
     admin_created: int = 0
     admin_existing: int = 0
+    catalog_categories_created: int = 0
+    catalog_categories_existing: int = 0
+    catalog_equipment_created: int = 0
+    catalog_equipment_existing: int = 0
     notes: list[str] = field(default_factory=list)
 
     def render(self) -> str:
@@ -136,6 +216,50 @@ async def seed_pilot() -> SeedSummary:
             )
             summary.admin_created += 1
 
+        # --- Catálogo MVP (aditivo, sin precios) ------------------------------
+        for category_data in CATALOG_DATA:
+            category = (
+                await session.execute(
+                    select(EquipmentCategory).where(
+                        EquipmentCategory.name == category_data["name"]
+                    )
+                )
+            ).scalar_one_or_none()
+            if category is None:
+                category = EquipmentCategory(
+                    name=category_data["name"],
+                    icon=category_data["icon"],
+                    technologies=category_data["technologies"],
+                )
+                session.add(category)
+                await session.flush()
+                summary.catalog_categories_created += 1
+            else:
+                summary.catalog_categories_existing += 1
+
+            for sector, name, description in category_data["equipment"]:
+                equipment = (
+                    await session.execute(
+                        select(Equipment.id).where(
+                            Equipment.category_id == category.id,
+                            Equipment.sector == sector,
+                            Equipment.name == name,
+                        )
+                    )
+                ).scalar_one_or_none()
+                if equipment is None:
+                    session.add(
+                        Equipment(
+                            category_id=category.id,
+                            sector=sector,
+                            name=name,
+                            description=description,
+                        )
+                    )
+                    summary.catalog_equipment_created += 1
+                else:
+                    summary.catalog_equipment_existing += 1
+
         await session.commit()
     summary.notes.append("técnicos en estado pending (verificarlos desde el panel admin)")
     return summary
@@ -153,8 +277,36 @@ async def teardown_pilot() -> str:
         if not user_ids:
             await session.commit()
             return "Teardown: no había usuarios del seed que eliminar."
-        # FK order: auth_tokens -> technicians -> users (el seed no crea
-        # solicitudes/reviews, así que no hay más dependencias).
+        # FK order: remove any dependent records belonging to these known seed
+        # users, then auth tokens/technicians/users. This remains safe if pilot
+        # users were used for manual smoke data after the seed was run.
+        request_ids = (
+            await session.execute(
+                select(ServiceRequest.id).where(ServiceRequest.user_id.in_(user_ids))
+            )
+        ).scalars().all()
+        if request_ids:
+            await session.execute(
+                delete(LocationUpdate).where(
+                    LocationUpdate.service_request_id.in_(request_ids)
+                )
+            )
+            await session.execute(
+                delete(Review).where(Review.service_request_id.in_(request_ids))
+            )
+            await session.execute(
+                delete(ServiceAgreement).where(
+                    ServiceAgreement.service_request_id.in_(request_ids)
+                )
+            )
+            await session.execute(
+                delete(TechnicianBid).where(
+                    TechnicianBid.service_request_id.in_(request_ids)
+                )
+            )
+            await session.execute(
+                delete(ServiceRequest).where(ServiceRequest.id.in_(request_ids))
+            )
         await session.execute(delete(AuthToken).where(AuthToken.user_id.in_(user_ids)))
         await session.execute(delete(Technician).where(Technician.user_id.in_(user_ids)))
         await session.execute(delete(User).where(User.id.in_(user_ids)))
@@ -163,7 +315,7 @@ async def teardown_pilot() -> str:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Seed piloto ColdDay (5 clientes + 5 técnicos + 1 admin)")
+    parser = argparse.ArgumentParser(description="Seed piloto ColdDay con usuarios y catálogo MVP")
     parser.add_argument("--teardown", action="store_true", help="Elimina los usuarios del seed")
     args = parser.parse_args()
     if args.teardown:
@@ -172,8 +324,8 @@ if __name__ == "__main__":
         summary = asyncio.run(seed_pilot())
         print(summary.render())
         assert summary.admin_created + summary.admin_existing == 1 and \
-            summary.clients_created + summary.clients_existing == 5 and \
-            summary.technicians_created + summary.technicians_existing == 5, \
-            "El seed debe converger a 5 clientes + 5 técnicos + 1 admin"
+            summary.clients_created + summary.clients_existing == len(CLIENT_DOCS) and \
+            summary.technicians_created + summary.technicians_existing == len(TECHNICIAN_DATA), \
+            f"El seed debe converger a {len(CLIENT_DOCS)} clientes + {len(TECHNICIAN_DATA)} técnicos + 1 admin"
         print("Verificación del admin: documento 1000000001 / AdminPiloto123 (sesión <= 4h, RF-AUTH-003)")
         print("Clientes/técnicos: documento 2000000001..05 / 3000000001..05, password PilotoCold456")

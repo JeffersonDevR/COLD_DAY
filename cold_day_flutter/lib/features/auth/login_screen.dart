@@ -36,6 +36,12 @@ class _LoginScreenState extends State<LoginScreen> {
     LoginMode.admin => 'Panel admin',
   };
 
+  String get _expectedRole => switch (widget.mode) {
+    LoginMode.client => 'client',
+    LoginMode.technician => 'technician',
+    LoginMode.admin => 'admin',
+  };
+
   Future<void> _login() async {
     final document = _documentController.text.trim();
     final password = _passwordController.text;
@@ -53,6 +59,9 @@ class _LoginScreenState extends State<LoginScreen> {
         password: password,
       );
       final role = result['role'] as String? ?? 'client';
+      if (role != _expectedRole) {
+        throw Exception('El rol de la cuenta no coincide con este acceso');
+      }
       final userId = result['user_id'] as int? ?? 0;
       await TokenStore.save(
         accessToken: result['access_token'] as String,
