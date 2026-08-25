@@ -55,31 +55,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     if (_error != null) {
       return Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(_error!, style: const TextStyle(color: Colors.red)),
+              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
               const SizedBox(height: 12),
-              ElevatedButton(onPressed: _loadProfile, child: const Text('Reintentar')),
+              ElevatedButton(
+                onPressed: _loadProfile,
+                child: const Text('Reintentar'),
+              ),
             ],
           ),
         ),
       );
     }
 
-    final user = _userProfile?['user'] as Map<String, dynamic>? ?? {};
+    // GET /api/auth/me returns UserOut directly, not an envelope.
+    final user = _userProfile ?? {};
     final name = user['full_name'] as String? ?? 'Usuario';
     final document = user['document'] as String? ?? 'N/A';
     final phone = user['phone'] as String? ?? 'N/A';
     final role = user['role'] as String? ?? 'client';
 
     // Para técnicos
-    final specialty = _userProfile?['specialty'] as String? ?? 'No especificado';
-    final status = _userProfile?['verification_status'] as String? ?? 'pending';
+    final specialty = user['specialty'] as String? ?? 'No disponible';
+    final status = user['verification_status'] as String? ?? 'No disponible';
 
     return Scaffold(
       body: SingleChildScrollView(
@@ -88,15 +93,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 20),
-            
+
             // Avatar
             Center(
               child: CircleAvatar(
                 radius: 46,
-                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.15),
+                backgroundColor: theme.colorScheme.primary.withValues(
+                  alpha: 0.15,
+                ),
                 child: Text(
                   name[0].toUpperCase(),
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
               ),
             ),
@@ -111,18 +122,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               role == 'client'
                   ? 'Cliente'
                   : role == 'technician'
-                      ? 'Técnico'
-                      : 'Administrador',
+                  ? 'Técnico'
+                  : 'Administrador',
               textAlign: TextAlign.center,
               style: TextStyle(color: theme.hintColor),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Info básica
             _InfoTile(label: 'Documento (CC)', value: document),
             _InfoTile(label: 'Teléfono', value: phone),
-            
+
             // Si es técnico, muestra certificaciones
             if (role == 'technician') ...[
               const SizedBox(height: 24),
@@ -139,24 +150,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 value: status == 'verified'
                     ? 'Aprobado ✅'
                     : status == 'rejected'
-                        ? 'Rechazado ❌'
-                        : 'En revisión ⏳',
+                    ? 'Rechazado ❌'
+                    : status == 'pending'
+                    ? 'En revisión ⏳'
+                    : 'No disponible',
               ),
             ],
-            
+
             const SizedBox(height: 48),
-            
+
             // Cerrar Sesión
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.redAccent,
-                side: const BorderSide(color: Colors.redAccent),
+                foregroundColor: theme.colorScheme.error,
+                side: BorderSide(color: theme.colorScheme.error),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: _logout,
               icon: const Icon(Icons.logout),
-              label: const Text('Cerrar sesión', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: const Text(
+                'Cerrar sesión',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -180,14 +198,19 @@ class _InfoTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF111928) : const Color(0xFFF3F4F6),
+        color: isDark
+            ? theme.colorScheme.surfaceContainer
+            : theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: TextStyle(color: theme.hintColor, fontSize: 14)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
         ],
       ),
     );

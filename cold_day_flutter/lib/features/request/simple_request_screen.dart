@@ -4,6 +4,7 @@ import 'package:cold_day_flutter/core/network/api_client.dart';
 import 'package:cold_day_flutter/core/network/token_store.dart';
 import 'package:cold_day_flutter/features/home/home_screen.dart';
 import 'package:cold_day_flutter/features/request/client_history_screen.dart';
+import 'package:cold_day_flutter/core/theme/app_theme.dart';
 import 'package:cold_day_flutter/core/widgets/app_widgets.dart';
 
 class SimpleRequestScreen extends StatefulWidget {
@@ -238,6 +239,42 @@ class _SimpleRequestScreenState extends State<SimpleRequestScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AppCard(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.ac_unit,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'COLD DAY',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Recuperá tu confort',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Contanos qué necesitás y conectamos tu solicitud con técnicos cercanos.',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppCard(
               child: Row(
                 children: [
                   CircleAvatar(
@@ -295,15 +332,8 @@ class _SimpleRequestScreenState extends State<SimpleRequestScreen> {
               decoration: InputDecoration(
                 hintText: 'Ej. El aire acondicionado no enfría...',
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade400),
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                filled: true,
-                fillColor: Theme.of(context).cardColor,
               ),
             ),
             const SizedBox(height: 20),
@@ -351,15 +381,8 @@ class _SimpleRequestScreenState extends State<SimpleRequestScreen> {
               InputDecorator(
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  filled: true,
-                  fillColor: Theme.of(context).cardColor,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 4,
@@ -400,15 +423,8 @@ class _SimpleRequestScreenState extends State<SimpleRequestScreen> {
                 hintText: 'Ej. 80000 (COP)',
                 prefixText: '\$ ',
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                filled: true,
-                fillColor: Theme.of(context).cardColor,
               ),
             ),
             const SizedBox(height: 20),
@@ -485,12 +501,12 @@ class _SimpleRequestScreenState extends State<SimpleRequestScreen> {
                 ),
                 onPressed: _isLoading ? null : _submitRequest,
                 icon: _isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 22,
                         height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       )
                     : const Icon(Icons.search),

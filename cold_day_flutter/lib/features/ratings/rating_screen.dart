@@ -64,16 +64,19 @@ class _RatingScreenState extends State<RatingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Calificar servicio'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         centerTitle: true,
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFE3F2FD), Colors.white],
+            colors: [
+              Theme.of(context).colorScheme.surfaceContainerLow,
+              Theme.of(context).colorScheme.surface,
+            ],
           ),
         ),
         child: ListView(
@@ -83,7 +86,9 @@ class _RatingScreenState extends State<RatingScreen> {
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.blueAccent.withValues(alpha: 0.3)),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                ),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -98,7 +103,7 @@ class _RatingScreenState extends State<RatingScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Técnico: ${widget.technicianName}',
-                        style: const TextStyle(color: Colors.blueGrey),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ],
                     const SizedBox(height: 16),
@@ -130,14 +135,14 @@ class _RatingScreenState extends State<RatingScreen> {
               controller: _commentController,
               maxLength: _maxCommentLength,
               maxLines: 4,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Comentario (opcional)',
                 hintText: 'Contanos cómo te fue...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).colorScheme.surface,
               ),
             ),
             const SizedBox(height: 8),
@@ -145,7 +150,7 @@ class _RatingScreenState extends State<RatingScreen> {
               width: double.infinity,
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.blueAccent,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -153,12 +158,12 @@ class _RatingScreenState extends State<RatingScreen> {
                 ),
                 onPressed: _submitting ? null : _submit,
                 icon: _submitting
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       )
                     : const Icon(Icons.star),

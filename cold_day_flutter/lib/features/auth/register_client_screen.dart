@@ -3,7 +3,7 @@ import 'package:cold_day_flutter/core/network/api_client.dart';
 
 // ─── Design tokens ─────────────────────────────────────────────────────────
 const _bg = Color(0xFF080F1E);
-const _accent = Color(0xFF5BC8F5);
+const _accent = Color(0xFF8FB9A9); // darkScheme.secondary — sage accent on dark surface
 const _textPrimary = Colors.white;
 const _textMuted = Color(0xFF6B7FA3);
 const _surface = Color(0xFF111928);

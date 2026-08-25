@@ -511,6 +511,7 @@ void main() {
     await tester.tap(find.text('Ver ubicación del técnico'));
     await tester.pumpAndSettle();
     expect(find.text('Rastreo del Técnico'), findsOneWidget);
+    expect(find.text('Carlos Tecnico'), findsOneWidget);
   });
 
   testWidgets('muestra error visible cuando falla una acción de oferta', (

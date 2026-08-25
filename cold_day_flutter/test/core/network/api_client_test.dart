@@ -345,6 +345,34 @@ void main() {
       );
     });
 
+    test('createServiceRequest sends the selected technology', () async {
+      await TokenStore.save(
+        accessToken: 'tok-tech-selection',
+        refreshToken: 'refresh-tech-selection',
+        role: 'client',
+        userId: 1,
+      );
+      ApiClient.setClient(
+        FakeClient((request) {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(body['equipment_id'], 7);
+          expect(body['category_hint'], 'Aire acondicionado');
+          expect(body['technology'], 'inverter');
+          return http.Response(jsonEncode({'request_id': 1}), 201);
+        }),
+      );
+
+      await ApiClient.createServiceRequest(
+        equipmentId: 7,
+        categoryHint: 'Aire acondicionado',
+        technology: 'inverter',
+        serviceType: 'repair',
+        description: 'No enfría',
+        latitude: 7.8939,
+        longitude: -72.5078,
+      );
+    });
+
     test('sendTechnicianBid envía costos, Bearer y NO technician_id', () async {
       await TokenStore.save(
         accessToken: 'tok-s2',

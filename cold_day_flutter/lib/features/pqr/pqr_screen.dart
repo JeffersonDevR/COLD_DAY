@@ -26,7 +26,7 @@ class PqrScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.support_agent, size: 80, color: Colors.blueAccent),
+              const Icon(Icons.support_agent, size: 80, color: Color(0xFF8FB9A9)),
               const SizedBox(height: 20),
               const Text(
                 '¿Tuviste un problema con un servicio?',
@@ -41,7 +41,7 @@ class PqrScreen extends StatelessWidget {
               const Text(
                 'Nuestro servicio al cliente y nuestros técnicos te ayudarán a solucionar el error. Contactanos por WhatsApp para brindarte atención.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Color(0xFF90CAF9)),
+                style: TextStyle(fontSize: 14, color: Color(0xFF8FB9A9)),
               ),
               const SizedBox(height: 32),
 

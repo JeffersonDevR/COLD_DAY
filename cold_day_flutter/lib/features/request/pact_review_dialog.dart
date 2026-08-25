@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cold_day_flutter/core/theme/app_theme.dart';
 import 'package:cold_day_flutter/features/request/request_status.dart';
 
 /// Decisión del cliente sobre un pacto propuesto (HU-SR-003).
@@ -52,10 +53,10 @@ class PactReviewDialog extends StatelessWidget {
                 ),
                 Text(
                   formatCop(total),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Colors.blueAccent,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ],
@@ -73,15 +74,15 @@ class PactReviewDialog extends StatelessWidget {
       actions: [
         TextButton.icon(
           onPressed: () => Navigator.pop(context, PactReviewDecision.reject),
-          icon: const Icon(Icons.close, color: Colors.redAccent),
-          label: const Text(
+          icon: Icon(Icons.close, color: Theme.of(context).colorScheme.error),
+          label: Text(
             'Rechazar pacto',
-            style: TextStyle(color: Colors.redAccent),
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ),
         FilledButton.icon(
           style: FilledButton.styleFrom(
-            backgroundColor: Colors.green.shade600,
+            backgroundColor: AppColors.success,
           ),
           onPressed: () => Navigator.pop(context, PactReviewDecision.accept),
           icon: const Icon(Icons.check_circle),

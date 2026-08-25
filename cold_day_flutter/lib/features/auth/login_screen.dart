@@ -5,14 +5,7 @@ import 'package:cold_day_flutter/core/network/token_store.dart';
 import 'package:cold_day_flutter/features/auth/auth_router.dart';
 import 'package:cold_day_flutter/features/auth/register_client_screen.dart';
 import 'package:cold_day_flutter/features/auth/register_technician_screen.dart';
-
-// ─── Design tokens ─────────────────────────────────────────────────────────
-const _bg = Color(0xFF080F1E);
-const _accent = Color(0xFF5BC8F5);
-const _textPrimary = Colors.white;
-const _textMuted = Color(0xFF6B7FA3);
-const _surface = Color(0xFF111928);
-const _errorColor = Color(0xFFFF6B6B);
+import 'package:cold_day_flutter/core/theme/app_theme.dart';
 
 enum LoginMode { client, technician, admin }
 
@@ -32,16 +25,16 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _error;
 
   String get _roleLabel => switch (widget.mode) {
-        LoginMode.client => 'cliente',
-        LoginMode.technician => 'técnico',
-        LoginMode.admin => 'administrador',
-      };
+    LoginMode.client => 'cliente',
+    LoginMode.technician => 'técnico',
+    LoginMode.admin => 'administrador',
+  };
 
   String get _headline => switch (widget.mode) {
-        LoginMode.client => 'Bienvenido',
-        LoginMode.technician => 'Acceso técnico',
-        LoginMode.admin => 'Panel admin',
-      };
+    LoginMode.client => 'Bienvenido',
+    LoginMode.technician => 'Acceso técnico',
+    LoginMode.admin => 'Panel admin',
+  };
 
   Future<void> _login() async {
     final document = _documentController.text.trim();
@@ -50,9 +43,15 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _error = 'Completá documento y contraseña.');
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      final result = await ApiClient.login(document: document, password: password);
+      final result = await ApiClient.login(
+        document: document,
+        password: password,
+      );
       final role = result['role'] as String? ?? 'client';
       final userId = result['user_id'] as int? ?? 0;
       await TokenStore.save(
@@ -84,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -95,27 +94,33 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 16),
               GestureDetector(
                 onTap: () => Navigator.maybePop(context),
-                child: const Icon(Icons.arrow_back, color: _textMuted, size: 22),
+                child: Icon(
+                  Icons.arrow_back,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 22,
+                ),
               ),
 
               const Spacer(flex: 2),
 
               // ── Headline ───────────────────────────────────────────────
-              const Icon(Icons.ac_unit, color: _accent, size: 32),
+              Icon(
+                Icons.ac_unit,
+                color: Theme.of(context).colorScheme.primary,
+                size: 32,
+              ),
               const SizedBox(height: 16),
               Text(
                 _headline,
-                style: const TextStyle(
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  color: _textPrimary,
                   letterSpacing: -1,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 'Ingresá como $_roleLabel',
-                style: const TextStyle(fontSize: 15, color: _textMuted),
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
 
               const SizedBox(height: 40),
@@ -143,12 +148,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    const Icon(Icons.info_outline, size: 15, color: _errorColor),
+                    Icon(
+                      Icons.info_outline,
+                      size: 15,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         _error!,
-                        style: const TextStyle(fontSize: 13, color: _errorColor),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
                     ),
                   ],
@@ -173,7 +185,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       '¿Sin cuenta? Registrate',
                       style: TextStyle(
                         fontSize: 14,
-                        color: _loading ? _textMuted : _accent,
+                        color: _loading
+                            ? Theme.of(context).colorScheme.onSurfaceVariant
+                            : Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -218,27 +232,33 @@ class _Field extends StatelessWidget {
       obscureText: obscure,
       keyboardType: keyboardType,
       onSubmitted: onSubmitted,
-      style: const TextStyle(color: _textPrimary, fontSize: 15),
+      style: Theme.of(context).textTheme.bodyLarge,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: _textMuted, fontSize: 14),
-        filled: true,
-        fillColor: _surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        labelStyle: Theme.of(context).inputDecorationTheme.labelStyle,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _accent, width: 1.5),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.primary,
+            width: 2,
+          ),
         ),
         suffixIcon: onToggleObscure != null
             ? IconButton(
                 icon: Icon(
-                  obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  obscure
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
                   size: 18,
-                  color: _textMuted,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 onPressed: onToggleObscure,
               )
@@ -267,19 +287,17 @@ class _PrimaryButton extends StatelessWidget {
       height: 52,
       child: FilledButton(
         style: FilledButton.styleFrom(
-          backgroundColor: _accent,
-          foregroundColor: const Color(0xFF080F1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          backgroundColor: Theme.of(context).colorScheme.secondary,
+          foregroundColor: Theme.of(context).colorScheme.onSecondary,
         ),
         onPressed: loading ? null : onTap,
         child: loading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Color(0xFF080F1E),
+                  color: Theme.of(context).colorScheme.onSecondary,
                 ),
               )
             : Text(label),

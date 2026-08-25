@@ -173,7 +173,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         label: 'Técnicos',
                         value: '$technicians',
                         icon: Icons.handyman,
-                        color: AppColors.success,
+                        color: Theme.of(context).colorScheme.tertiary,
                         valueKey: const Key('kpi-technicians'),
                       ),
                     ),
@@ -183,7 +183,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         label: 'Pendientes',
                         value: '$pending',
                         icon: Icons.hourglass_top,
-                        color: AppColors.accent,
+                        color: Theme.of(context).colorScheme.secondary,
                         valueKey: const Key('kpi-pending'),
                       ),
                     ),
@@ -242,28 +242,22 @@ class _KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF111928) : const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(16),
-      ),
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: 28, color: color),
           const SizedBox(height: 8),
           Text(
             key: valueKey,
             value,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: Theme.of(context).colorScheme.primaryContainer,
+            ),
           ),
           const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
-          ),
+          Text(label, style: Theme.of(context).textTheme.labelLarge),
         ],
       ),
     );
@@ -525,7 +519,12 @@ class _AdminTechniciansListScreenState
                     ),
                   ],
                 ),
-                Text(specialty, style: const TextStyle(color: Colors.grey)),
+                Text(
+                  specialty,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
                 if (status == 'pending') ...[
                   const SizedBox(height: 12),
                   Row(

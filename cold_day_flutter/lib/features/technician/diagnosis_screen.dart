@@ -55,16 +55,19 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Diagnóstico'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         centerTitle: true,
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFE3F2FD), Colors.white],
+            colors: [
+              Theme.of(context).colorScheme.surfaceContainerLow,
+              Theme.of(context).colorScheme.surface,
+            ],
           ),
         ),
         child: ListView(
@@ -82,7 +85,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                 hintText: 'Ej. Fuga de gas refrigerante en la línea de alta...',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).colorScheme.surface,
               ),
             ),
             const SizedBox(height: 24),
@@ -90,19 +93,19 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
               height: 54,
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.blueAccent,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 onPressed: _submitting ? null : _submit,
                 icon: _submitting
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 22,
                         height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       )
                     : const Icon(Icons.assignment_turned_in),

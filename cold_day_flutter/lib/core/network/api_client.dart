@@ -195,6 +195,7 @@ class ApiClient {
     required double longitude,
     double? budgetOffered,
     String? categoryHint,
+    String? technology,
   }) async {
     // RF-SR-001: el dueño sale del token autenticado; el payload NO lleva user_id.
     final url = Uri.parse("$baseUrl/services/");
@@ -208,6 +209,7 @@ class ApiClient {
     if (budgetOffered != null) body["budget_offered"] = budgetOffered;
     if (equipmentId != null) body["equipment_id"] = equipmentId;
     if (categoryHint != null) body["category_hint"] = categoryHint;
+    if (technology != null) body["technology"] = technology;
 
     final response = await _client
         .post(url, headers: await _authedHeaders(), body: jsonEncode(body))

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cold_day_flutter/core/network/api_client.dart';
+import 'package:cold_day_flutter/core/theme/app_theme.dart';
 import 'package:cold_day_flutter/features/request/client_history_screen.dart';
 
 class ServiceRequestScreen extends StatefulWidget {
@@ -8,6 +9,8 @@ class ServiceRequestScreen extends StatefulWidget {
   final String sector;
   final String equipmentType;
   final String serviceType;
+  final String? categoryHint;
+  final String? technology;
 
   const ServiceRequestScreen({
     super.key,
@@ -15,6 +18,8 @@ class ServiceRequestScreen extends StatefulWidget {
     required this.sector,
     required this.equipmentType,
     required this.serviceType,
+    this.categoryHint,
+    this.technology,
   });
 
   @override
@@ -110,6 +115,8 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
         latitude: currentLat!,
         longitude: currentLon!,
         budgetOffered: budget,
+        categoryHint: widget.categoryHint,
+        technology: widget.technology,
       );
 
       if (!mounted) return;
@@ -162,16 +169,19 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detalles de la Solicitud'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         centerTitle: true,
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFE3F2FD), Colors.white],
+            colors: [
+              Theme.of(context).colorScheme.surfaceContainerLow,
+              Theme.of(context).colorScheme.surface,
+            ],
           ),
         ),
         child: ListView(
@@ -182,7 +192,9 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
                 side: BorderSide(
-                  color: Colors.blueAccent.withValues(alpha: 0.3),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.3),
                 ),
               ),
               child: Padding(
@@ -202,15 +214,30 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
                                 : 'Industrial',
                             style: const TextStyle(fontSize: 12),
                           ),
-                          backgroundColor: Colors.blue.shade50,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer,
                           visualDensity: VisualDensity.compact,
                         ),
+                        if (widget.technology != null)
+                          Chip(
+                            label: Text(
+                              widget.technology == 'inverter'
+                                  ? 'Inverter'
+                                  : 'Convencional',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.secondaryContainer,
+                            visualDensity: VisualDensity.compact,
+                          ),
                         Chip(
                           label: Text(
                             serviceLabel,
                             style: const TextStyle(fontSize: 12),
                           ),
-                          backgroundColor: Colors.green.shade50,
+                          backgroundColor: AppColors.successContainer,
                           visualDensity: VisualDensity.compact,
                         ),
                       ],
@@ -218,7 +245,10 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Icon(Icons.ac_unit, color: Colors.blueAccent),
+                        Icon(
+                          Icons.ac_unit,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -251,7 +281,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).colorScheme.surface,
               ),
             ),
             const SizedBox(height: 20),
@@ -271,7 +301,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).colorScheme.surface,
               ),
             ),
             const SizedBox(height: 20),
@@ -281,7 +311,9 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.grey.shade200),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -289,9 +321,9 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
                   children: [
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: const Icon(
+                      leading: Icon(
                         Icons.location_on,
-                        color: Colors.redAccent,
+                        color: Theme.of(context).colorScheme.error,
                       ),
                       title: const Text('Ubicación del servicio'),
                       subtitle: Text(
@@ -304,20 +336,24 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.blueAccent,
-                          side: const BorderSide(color: Colors.blueAccent),
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         onPressed: locating ? null : _useGpsLocation,
                         icon: locating
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 18,
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.blueAccent,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               )
                             : const Icon(Icons.my_location),
@@ -338,19 +374,19 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
               height: 54,
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.blueAccent,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 onPressed: isLoading ? null : _submitRequest,
                 icon: isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 22,
                         height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       )
                     : const Icon(Icons.radar),

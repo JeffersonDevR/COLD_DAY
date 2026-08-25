@@ -127,6 +127,7 @@ async def _ensure_schema():
         await conn.execute(
             text(
                 "ALTER TABLE service_requests "
+                "ADD COLUMN IF NOT EXISTS technology varchar(20), "
                 "ADD COLUMN IF NOT EXISTS assigned_technician_id "
                 "integer REFERENCES technicians(id), "
                 "ADD COLUMN IF NOT EXISTS diagnosis_observations text, "

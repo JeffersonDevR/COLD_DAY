@@ -4,6 +4,7 @@ import 'package:cold_day_flutter/features/ratings/rating_screen.dart';
 import 'package:cold_day_flutter/features/request/pact_review_dialog.dart';
 import 'package:cold_day_flutter/features/request/request_status.dart';
 import 'package:cold_day_flutter/features/tracking/tracking_screen.dart';
+import 'package:cold_day_flutter/core/theme/app_theme.dart';
 import 'package:cold_day_flutter/core/widgets/app_widgets.dart';
 
 /// Historial del cliente (RF-SR-010, HU-SR-001/003): listado propio desde
@@ -43,7 +44,8 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
         final activeStates = [
           'requested',
           'bidding',
-          'accepted',
+          'diagnosis',
+          'pact_proposed',
           'in_progress',
         ];
         if (widget.filterActive == true) {
@@ -183,7 +185,7 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       itemCount: _requests.length,
       itemBuilder: (context, index) {
         final req = _requests[index];
@@ -192,9 +194,14 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
-          elevation: 2,
+          elevation: 1,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: Theme.of(
+                context,
+              ).colorScheme.outlineVariant.withValues(alpha: 0.45),
+            ),
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
@@ -229,7 +236,7 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
                     const SizedBox(height: 4),
                     Text(
                       req['description'] as String,
-                      style: const TextStyle(color: Colors.grey),
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                   const SizedBox(height: 8),
@@ -237,32 +244,26 @@ class _ClientHistoryScreenState extends State<ClientHistoryScreen> {
                     spacing: 8,
                     runSpacing: 4,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.calendar_today,
                         size: 14,
-                        color: Colors.grey,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         formatRequestDate(req['created_at'] as String?),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
+                        style: Theme.of(context).textTheme.labelMedium,
                       ),
                       if (technician != null) ...[
-                        const Icon(
+                        Icon(
                           Icons.engineering,
                           size: 14,
-                          color: Colors.blueGrey,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                         const SizedBox(width: 6),
                         Text(
                           technician['name'] as String? ?? '',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.blueGrey,
-                          ),
+                          style: Theme.of(context).textTheme.labelMedium,
                         ),
                       ],
                     ],
@@ -429,7 +430,9 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
             child: const Text('Volver'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Sí, cancelar'),
           ),
@@ -484,8 +487,13 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
           requestId: widget.requestId,
           clientLat: latitude,
           clientLon: longitude,
-          clientName: detail['client_name'] as String?,
-          technicianName: detail['technician_name'] as String?,
+          clientName: detail['client'] is Map<String, dynamic>
+              ? (detail['client'] as Map<String, dynamic>)['full_name']
+                    as String?
+              : null,
+          technicianName:
+              (detail['technician'] as Map<String, dynamic>?)?['name']
+                  as String?,
         ),
       ),
     );
@@ -554,6 +562,36 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
         technician != null &&
         latitude != null &&
         longitude != null;
+    final timelineEvents = <AppTimelineEvent>[
+      AppTimelineEvent(
+        title: 'Solicitud creada',
+        subtitle: formatRequestDate(detail['created_at'] as String?),
+        status: requestStatusLabel(status),
+        icon: Icons.assignment_turned_in,
+      ),
+      ...bids.map(
+        (bid) => AppTimelineEvent(
+          title: 'Oferta recibida',
+          subtitle:
+              '${formatCop(_doubleValue(bid['price_offered']) ?? 0)} · '
+              '${formatRequestDate(bid['created_at'] as String?)}',
+          status: _bidTimelineLabel(bid['status']?.toString() ?? ''),
+          icon: Icons.handshake_outlined,
+          isCurrent: bid['status'] == 'pending',
+        ),
+      ),
+      ...pacts.map(
+        (pact) => AppTimelineEvent(
+          title: 'Pacto de servicio',
+          subtitle:
+              '${formatCop(_doubleValue(pact['total']) ?? 0)} · '
+              '${formatRequestDate(pact['created_at'] as String?)}',
+          status: _pactTimelineLabel(pact['status']?.toString() ?? ''),
+          icon: Icons.description_outlined,
+          isCurrent: pact['status'] == 'proposed',
+        ),
+      ),
+    ];
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -748,9 +786,38 @@ class _RequestDetailScreenState extends State<_RequestDetailScreen> {
             onReview: () => _reviewPact(pact),
           ),
         ),
+        const SizedBox(height: AppSpacing.lg),
+        const SectionHeader(
+          title: 'Línea de tiempo',
+          subtitle: 'Eventos reales de tu solicitud',
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AppTimeline(events: timelineEvents),
         const SizedBox(height: 24),
       ],
     );
+  }
+
+  String _bidTimelineLabel(String status) {
+    switch (status) {
+      case 'accepted':
+        return 'Aceptada';
+      case 'rejected':
+        return 'Rechazada';
+      default:
+        return 'Pendiente';
+    }
+  }
+
+  String _pactTimelineLabel(String status) {
+    switch (status) {
+      case 'accepted':
+        return 'Aceptado';
+      case 'rejected':
+        return 'Rechazado';
+      default:
+        return 'Propuesto';
+    }
   }
 }
 
@@ -776,7 +843,7 @@ class _BidTile extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -801,7 +868,7 @@ class _BidTile extends StatelessWidget {
             if (showAccept)
               FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.green.shade600,
+                  backgroundColor: AppColors.success,
                 ),
                 onPressed: loading ? null : onAccept,
                 child: loading
@@ -856,7 +923,7 @@ class _PactTile extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),

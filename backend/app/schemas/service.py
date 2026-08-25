@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -5,6 +7,7 @@ class ServiceRequestCreate(BaseModel):
     # Sin user_id: el dueño sale del token autenticado (RF-SR-001, auth PR1).
     equipment_id: int | None = None
     category_hint: str | None = None
+    technology: Literal["conventional", "inverter"] | None = None
     service_type: str = "repair"  # installation, maintenance, repair
     description: str
     latitude: float = Field(..., ge=-90, le=90)

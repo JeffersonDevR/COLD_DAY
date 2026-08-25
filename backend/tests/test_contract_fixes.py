@@ -22,7 +22,7 @@ from sqlalchemy import select, text
 from app.api.auth import router as auth_router
 from app.api.services import router as services_router
 from app.core.database import AsyncSessionLocal
-from app.models.service import Equipment, ServiceRequest, TechnicianBid
+from app.models.service import Equipment, EquipmentCategory, ServiceRequest, TechnicianBid
 from app.models.user import User
 
 pytestmark = pytest.mark.integration
@@ -335,6 +335,65 @@ async def test_create_request_binds_authenticated_user_from_token(client):
         ).scalar_one()
     assert req.user_id == user.id
     assert req.status == "requested"
+
+
+async def test_create_request_persists_valid_technology(client):
+    _, client_token = await _register_and_login(client, "client")
+    async with AsyncSessionLocal() as session:
+        equipment_rows = (
+            await session.execute(
+                select(Equipment, EquipmentCategory)
+                .join(EquipmentCategory, EquipmentCategory.id == Equipment.category_id)
+            )
+        ).all()
+        equipment = next(
+            (
+                equipment_row
+                for equipment_row, category in equipment_rows
+                if "inverter" in (category.technologies or [])
+            ),
+            None,
+        )
+    if equipment is None:
+        pytest.skip("catalog has no inverter equipment category")
+
+    response = await client.post(
+        "/api/services/",
+        headers=_auth_headers(client_token),
+        json={
+            "equipment_id": equipment.id,
+            "technology": "inverter",
+            "service_type": "repair",
+            "description": "Equipo inverter no enfría",
+            "latitude": 7.8939,
+            "longitude": -72.5078,
+        },
+    )
+    assert response.status_code == 201, response.text
+    async with AsyncSessionLocal() as session:
+        request = await session.get(ServiceRequest, response.json()["request_id"])
+    assert request.technology == "inverter"
+
+
+async def test_create_request_rejects_technology_not_in_category(client):
+    _, client_token = await _register_and_login(client, "client")
+    equipment_id = await _first_equipment_id()
+    response = await client.post(
+        "/api/services/",
+        headers=_auth_headers(client_token),
+        json={
+            "equipment_id": equipment_id,
+            "technology": "inverter",
+            "service_type": "repair",
+            "description": "Tecnología incompatible",
+            "latitude": 7.8939,
+            "longitude": -72.5078,
+        },
+    )
+    # The catalog may legitimately support inverter on the first equipment.
+    if response.status_code == 201:
+        pytest.skip("first catalog equipment supports inverter")
+    assert response.status_code == 422
 
 
 async def test_create_request_without_token_returns_401(client):

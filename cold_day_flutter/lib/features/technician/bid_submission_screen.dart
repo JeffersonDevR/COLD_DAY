@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cold_day_flutter/core/network/api_client.dart';
+import 'package:cold_day_flutter/core/theme/app_theme.dart';
 
 /// Formulario real de oferta (RF-TEC-006, RF-SR-002): el técnico envía el bid
 /// con costos de traslado + diagnóstico (>= 0). El compromiso vinculante llega
@@ -68,16 +69,19 @@ class _BidSubmissionScreenState extends State<BidSubmissionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Enviar Oferta'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         centerTitle: true,
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFE3F2FD), Colors.white],
+            colors: [
+              Theme.of(context).colorScheme.surfaceContainerLow,
+              Theme.of(context).colorScheme.surface,
+            ],
           ),
         ),
         child: ListView(
@@ -87,10 +91,12 @@ class _BidSubmissionScreenState extends State<BidSubmissionScreen> {
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.blueAccent.withValues(alpha: 0.3)),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                ),
               ),
               child: ListTile(
-                leading: const Icon(Icons.ac_unit, color: Colors.blueAccent),
+                leading: Icon(Icons.ac_unit, color: Theme.of(context).colorScheme.primary),
                 title: Text(widget.equipment),
                 subtitle: Text('Solicitud #${widget.requestId}'),
               ),
@@ -103,24 +109,24 @@ class _BidSubmissionScreenState extends State<BidSubmissionScreen> {
                   TextField(
                     controller: _transportController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Costo de traslado (COP)',
                       prefixText: '\$ ',
                       border: OutlineInputBorder(),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).colorScheme.surface,
                     ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _diagnosisController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Costo de diagnóstico (COP)',
                       prefixText: '\$ ',
                       border: OutlineInputBorder(),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).colorScheme.surface,
                     ),
                   ),
                   const SizedBox(height: 28),
@@ -128,19 +134,19 @@ class _BidSubmissionScreenState extends State<BidSubmissionScreen> {
                     height: 54,
                     child: FilledButton.icon(
                       style: FilledButton.styleFrom(
-                        backgroundColor: Colors.green.shade600,
+                        backgroundColor: AppColors.success,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                       onPressed: _submitting ? null : _submit,
                       icon: _submitting
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 22,
                               height: 22,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.5,
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.onPrimary,
                               ),
                             )
                           : const Icon(Icons.handshake),

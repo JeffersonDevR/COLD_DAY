@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'package:cold_day_flutter/core/map/map_config.dart';
 import 'package:cold_day_flutter/core/network/api_client.dart';
+import 'package:cold_day_flutter/core/theme/app_theme.dart';
 import 'package:cold_day_flutter/core/widgets/app_widgets.dart';
 import 'package:cold_day_flutter/features/technician/bid_submission_screen.dart';
 
@@ -308,6 +309,39 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
         RichAttributionWidget(
           attributions: [TextSourceAttribution(mapAttribution)],
         ),
+        Positioned(
+          top: AppSpacing.md,
+          left: AppSpacing.md,
+          right: AppSpacing.md,
+          child: IgnorePointer(
+            child: Card(
+              color: Theme.of(
+                context,
+              ).colorScheme.surface.withValues(alpha: 0.94),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.radar,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        '${requests.length} solicitudes con ubicación disponible',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -358,15 +392,31 @@ class _RequestDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
     color: Theme.of(context).colorScheme.surface,
-    elevation: 4,
+    elevation: 8,
+    borderRadius: const BorderRadius.vertical(
+      top: Radius.circular(AppRadii.xl),
+    ),
     child: Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
       child: Wrap(
         alignment: WrapAlignment.spaceBetween,
         crossAxisAlignment: WrapCrossAlignment.center,
         spacing: 12,
         runSpacing: 8,
         children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.outlineVariant,
+              borderRadius: BorderRadius.circular(AppRadii.sm),
+            ),
+          ),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 230),
             child: Column(

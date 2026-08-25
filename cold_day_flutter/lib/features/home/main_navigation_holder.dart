@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cold_day_flutter/features/admin/admin_dashboard_screen.dart';
-import 'package:cold_day_flutter/features/request/simple_request_screen.dart';
+import 'package:cold_day_flutter/features/equipment/equipment_selection_screen.dart';
 import 'package:cold_day_flutter/features/request/client_history_screen.dart';
 import 'package:cold_day_flutter/features/profile/profile_screen.dart';
 import 'package:cold_day_flutter/features/technician/technician_dashboard.dart';
@@ -22,7 +22,7 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
     switch (widget.role) {
       case 'client':
         return [
-          const SimpleRequestScreen(),
+          const EquipmentSelectionScreen(),
           const ClientServicesTabScreen(),
           const ProfileScreen(),
         ];
@@ -111,7 +111,6 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
         items: _navItems,
       ),
     );

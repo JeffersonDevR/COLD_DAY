@@ -22,7 +22,7 @@ class ComingSoonScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.construction, size: 80, color: Colors.blueAccent),
+              const Icon(Icons.construction, size: 80, color: Color(0xFF8FB9A9)),
               const SizedBox(height: 20),
               Text(
                 'Próximamente',
@@ -37,7 +37,7 @@ class ComingSoonScreen extends StatelessWidget {
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 15, color: Color(0xFF90CAF9)),
+                style: const TextStyle(fontSize: 15, color: Color(0xFF8FB9A9)),
               ),
             ],
           ),

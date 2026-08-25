@@ -141,7 +141,7 @@ async def list_requests(
     """
     query = (
         select(ServiceRequest, Equipment.name, User.full_name)
-        .join(Equipment, Equipment.id == ServiceRequest.equipment_id)
+        .outerjoin(Equipment, Equipment.id == ServiceRequest.equipment_id)
         .join(User, User.id == ServiceRequest.user_id)
         .order_by(ServiceRequest.created_at.desc())
     )

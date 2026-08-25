@@ -94,8 +94,8 @@ class _EquipmentSelectionScreenState extends State<EquipmentSelectionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('¿Qué necesitas?'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         centerTitle: true,
         actions: [
           // RF-SR-010: el historial del cliente es alcanzable desde el flujo.
@@ -116,7 +116,9 @@ class _EquipmentSelectionScreenState extends State<EquipmentSelectionScreen> {
             onPressed: () async {
               final refresh = await TokenStore.readRefreshToken();
               if (refresh != null) {
-                try { await ApiClient.logout(refresh); } catch (_) {}
+                try {
+                  await ApiClient.logout(refresh);
+                } catch (_) {}
               }
               await TokenStore.clear();
               if (!context.mounted) return;
@@ -130,11 +132,14 @@ class _EquipmentSelectionScreenState extends State<EquipmentSelectionScreen> {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFE3F2FD), Colors.white],
+            colors: [
+              Theme.of(context).colorScheme.surfaceContainerLow,
+              Theme.of(context).colorScheme.surface,
+            ],
           ),
         ),
         child: _buildBody(),
@@ -144,11 +149,13 @@ class _EquipmentSelectionScreenState extends State<EquipmentSelectionScreen> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Colors.blueAccent),
+            CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
             SizedBox(height: 16),
             Text('Cargando catálogo...'),
           ],
@@ -210,26 +217,25 @@ class _EquipmentSelectionScreenState extends State<EquipmentSelectionScreen> {
           const SizedBox(height: 24),
           _stepHeader('2', 'Tecnología'),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: _technologiesOf(_selectedCategory!).map((technology) {
+              final label = technology == 'inverter'
+                  ? 'Inverter'
+                  : 'Convencional';
+              return SizedBox(
+                width: 170,
                 child: _TechnologyCard(
-                  icon: Icons.settings_backup_restore,
-                  label: 'Convencional',
-                  selected: _selectedTechnology == 'conventional',
-                  onTap: () => setState(() => _selectedTechnology = 'conventional'),
+                  icon: technology == 'inverter'
+                      ? Icons.bolt
+                      : Icons.settings_backup_restore,
+                  label: label,
+                  selected: _selectedTechnology == technology,
+                  onTap: () => setState(() => _selectedTechnology = technology),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _TechnologyCard(
-                  icon: Icons.bolt,
-                  label: 'Inverter',
-                  selected: _selectedTechnology == 'inverter',
-                  onTap: () => setState(() => _selectedTechnology = 'inverter'),
-                ),
-              ),
-            ],
+              );
+            }).toList(),
           ),
         ],
 
@@ -268,7 +274,7 @@ class _EquipmentSelectionScreenState extends State<EquipmentSelectionScreen> {
             const SizedBox(height: 8),
             const Text(
               'Este servicio aplica solo para sector Industrial',
-              style: TextStyle(color: Colors.blueGrey, fontSize: 12),
+              style: TextStyle(color: Color(0xFF3F4A46), fontSize: 12),
             ),
           ],
         ],
@@ -276,12 +282,14 @@ class _EquipmentSelectionScreenState extends State<EquipmentSelectionScreen> {
         const SizedBox(height: 28),
 
         // ===== Continuar a confirmación =====
-        if (_selectedSector != null)
+        if (_selectedSector != null &&
+            (_technologiesOf(_selectedCategory!).isEmpty ||
+                _selectedTechnology != null))
           SizedBox(
             height: 54,
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
-                backgroundColor: Colors.blueAccent,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -295,11 +303,14 @@ class _EquipmentSelectionScreenState extends State<EquipmentSelectionScreen> {
                 // RF-LAND-005: Continúa a la creación de la solicitud real,
                 // no al dead-end estático de confirmación.
                 final equipments =
-                    _selectedCategory![_selectedSector!] as List<dynamic>? ?? [];
+                    _selectedCategory![_selectedSector!] as List<dynamic>? ??
+                    [];
                 if (equipments.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('No hay equipos disponibles para este sector'),
+                      content: Text(
+                        'No hay equipos disponibles para este sector',
+                      ),
                     ),
                   );
                   return;
@@ -310,9 +321,11 @@ class _EquipmentSelectionScreenState extends State<EquipmentSelectionScreen> {
                   MaterialPageRoute(
                     builder: (context) => ServiceRequestScreen(
                       equipmentId: first['id'] as int,
+                      categoryHint: _selectedCategory!['name'] as String,
                       sector: _selectedSector!,
                       equipmentType: first['name'] as String,
                       serviceType: 'repair',
+                      technology: _selectedTechnology,
                     ),
                   ),
                 );
@@ -328,11 +341,11 @@ class _EquipmentSelectionScreenState extends State<EquipmentSelectionScreen> {
       children: [
         CircleAvatar(
           radius: 12,
-          backgroundColor: Colors.blueAccent,
+          backgroundColor: Theme.of(context).colorScheme.primary,
           child: Text(
             num,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onPrimary,
               fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
@@ -372,15 +385,21 @@ class _CategoryChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: selected ? Colors.blueAccent : Colors.white,
+          color: selected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.surface,
           border: Border.all(
-            color: selected ? Colors.blueAccent : Colors.grey.shade300,
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outlineVariant,
             width: 2,
           ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: Colors.blueAccent.withValues(alpha: 0.3),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -390,7 +409,13 @@ class _CategoryChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 26, color: selected ? Colors.white : Colors.blueGrey),
+            Icon(
+              icon,
+              size: 26,
+              color: selected
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(width: 10),
             Flexible(
               child: Text(
@@ -399,7 +424,9 @@ class _CategoryChip extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : Colors.blueGrey,
+                  color: selected
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -433,9 +460,13 @@ class _TechnologyCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: selected ? Colors.blueAccent : Colors.white,
+          color: selected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.surface,
           border: Border.all(
-            color: selected ? Colors.blueAccent : Colors.grey.shade300,
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outlineVariant,
             width: 2,
           ),
         ),
@@ -444,14 +475,18 @@ class _TechnologyCard extends StatelessWidget {
             Icon(
               icon,
               size: 32,
-              color: selected ? Colors.white : Colors.blueGrey,
+              color: selected
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : Colors.blueGrey,
+                color: selected
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -487,12 +522,14 @@ class _SectorCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: !enabled
-              ? Colors.grey.shade100
+              ? Theme.of(context).colorScheme.surfaceContainerLow
               : selected
-                  ? Colors.blueAccent
-                  : Colors.white,
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.surface,
           border: Border.all(
-            color: selected ? Colors.blueAccent : Colors.grey.shade300,
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outlineVariant,
             width: 2,
           ),
         ),
@@ -502,10 +539,10 @@ class _SectorCard extends StatelessWidget {
               icon,
               size: 36,
               color: !enabled
-                  ? Colors.grey.shade400
+                  ? Theme.of(context).colorScheme.onSurfaceVariant
                   : selected
-                      ? Colors.white
-                      : Colors.blueGrey,
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 8),
             Text(
@@ -514,10 +551,10 @@ class _SectorCard extends StatelessWidget {
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: !enabled
-                    ? Colors.grey.shade400
+                    ? Theme.of(context).colorScheme.onSurfaceVariant
                     : selected
-                        ? Colors.white
-                        : Colors.blueGrey,
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             if (!enabled) ...[

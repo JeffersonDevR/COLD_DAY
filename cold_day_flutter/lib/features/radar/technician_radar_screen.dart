@@ -105,7 +105,9 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
                   diagnosis < 0) {
                 ScaffoldMessenger.of(ctx).showSnackBar(
                   const SnackBar(
-                    content: Text('Los costos deben ser números mayores o iguales a 0'),
+                    content: Text(
+                      'Los costos deben ser números mayores o iguales a 0',
+                    ),
                   ),
                 );
                 return;
@@ -137,7 +139,11 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
+          icon: Icon(
+            Icons.check_circle,
+            color: Theme.of(ctx).colorScheme.tertiary,
+            size: 48,
+          ),
           title: const Text('¡Oferta enviada!'),
           content: Text(
             'Tu oferta para ${tech['name']} se envió: '
@@ -156,9 +162,9 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al enviar la oferta: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al enviar la oferta: $e')));
     }
   }
 
@@ -167,59 +173,54 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Radar de Técnicos #${widget.requestId}'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
         centerTitle: true,
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFE3F2FD), Colors.white],
-          ),
-        ),
-        child: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.blueAccent,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.radar, color: Colors.white, size: 28),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Técnicos certificados en climatización a menos de 5 km',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
+      body: Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.radar,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Técnicos certificados en climatización a menos de 5 km',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Expanded(child: _buildBody()),
-          ],
-        ),
+          ),
+          Expanded(child: _buildBody()),
+        ],
       ),
     );
   }
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Colors.blueAccent),
-            SizedBox(height: 16),
-            Text('Buscando técnicos cercanos...'),
+            CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(height: 16),
+            const Text('Buscando técnicos cercanos...'),
           ],
         ),
       );
@@ -232,7 +233,11 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.cloud_off, size: 56, color: Colors.grey),
+              Icon(
+                Icons.cloud_off,
+                size: 56,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               const SizedBox(height: 12),
               const Text(
                 'No se pudo conectar con el radar',
@@ -242,7 +247,9 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 16),
               FilledButton.icon(
@@ -258,11 +265,15 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
 
     if (_technicians.isEmpty) {
       // RF-MATCH-007: mensaje de área sin cobertura.
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.radar, size: 56, color: Colors.grey),
+            Icon(
+              Icons.radar,
+              size: 56,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             SizedBox(height: 12),
             Text(
               'No se encontraron técnicos en tu área',
@@ -272,7 +283,9 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
             SizedBox(height: 4),
             Text(
               'Probá ampliando el radio de búsqueda',
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -303,12 +316,12 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
                   children: [
                     CircleAvatar(
                       radius: 26,
-                      backgroundColor: Colors.blueAccent,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       child: Text(
                         name[0].toUpperCase(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -332,8 +345,10 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
                             specialty,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.grey,
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                               fontSize: 13,
                             ),
                           ),
@@ -346,8 +361,13 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.star,
-                                      color: Colors.amber, size: 18),
+                                  Icon(
+                                    Icons.star,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.secondary,
+                                    size: 18,
+                                  ),
                                   Text(
                                     ' $rating',
                                     style: const TextStyle(
@@ -359,8 +379,13 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.location_on,
-                                      color: Colors.blueGrey, size: 18),
+                                  Icon(
+                                    Icons.location_on,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                    size: 18,
+                                  ),
                                   Text(
                                     ' $distance km',
                                     style: const TextStyle(
@@ -381,10 +406,8 @@ class _TechnicianRadarScreenState extends State<TechnicianRadarScreen> {
                   width: double.infinity,
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(
-                      backgroundColor: Colors.green.shade600,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      backgroundColor: Theme.of(context).colorScheme.tertiary,
+                      foregroundColor: Theme.of(context).colorScheme.onTertiary,
                     ),
                     onPressed: () => _sendOffer(tech),
                     icon: const Icon(Icons.handshake),

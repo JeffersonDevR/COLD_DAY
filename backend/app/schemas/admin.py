@@ -45,7 +45,7 @@ class AdminRequestOut(BaseModel):
     status: str
     service_type: str
     description: str
-    equipment_name: str
+    equipment_name: str | None
     client_name: str
     created_at: datetime
 

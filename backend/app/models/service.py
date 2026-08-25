@@ -83,6 +83,7 @@ class ServiceRequest(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     equipment_id = Column(Integer, ForeignKey("equipments.id"), nullable=True)
     category_hint = Column(String, nullable=True)
+    technology = Column(String(20), nullable=True)  # conventional or inverter
     service_type = Column(
         String(50), nullable=False
     )  # "installation", "maintenance", "repair"
@@ -109,6 +110,7 @@ class ServiceRequest(Base):
     )
 
     equipment = relationship("Equipment")
+    user = relationship("User", foreign_keys=[user_id])
     bids = relationship(
         "TechnicianBid", back_populates="service_request", cascade="all, delete"
     )

@@ -81,16 +81,19 @@ class _PactProposalScreenState extends State<PactProposalScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Proponer Pacto'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         centerTitle: true,
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFE3F2FD), Colors.white],
+            colors: [
+              Theme.of(context).colorScheme.surfaceContainerLow,
+              Theme.of(context).colorScheme.surface,
+            ],
           ),
         ),
         child: ListView(
@@ -104,36 +107,36 @@ class _PactProposalScreenState extends State<PactProposalScreen> {
             TextField(
               controller: _laborController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Costo de mano de obra (COP)',
                 prefixText: '\$ ',
                 border: OutlineInputBorder(),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).colorScheme.surface,
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _transportController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Costo de traslado (COP)',
                 prefixText: '\$ ',
                 border: OutlineInputBorder(),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).colorScheme.surface,
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _diagnosisController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Costo de diagnóstico (COP)',
                 prefixText: '\$ ',
                 border: OutlineInputBorder(),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).colorScheme.surface,
               ),
             ),
             const SizedBox(height: 16),
@@ -144,12 +147,12 @@ class _PactProposalScreenState extends State<PactProposalScreen> {
                 labelText: 'Observaciones del diagnóstico (opcional)',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).colorScheme.surface,
               ),
             ),
             const SizedBox(height: 16),
             Card(
-              color: Colors.blue.shade50,
+              color: Theme.of(context).colorScheme.primaryContainer,
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(
@@ -161,10 +164,10 @@ class _PactProposalScreenState extends State<PactProposalScreen> {
                     ),
                     Text(
                       '\$${_total.toStringAsFixed(0)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Colors.blueAccent,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ],
@@ -176,19 +179,19 @@ class _PactProposalScreenState extends State<PactProposalScreen> {
               height: 54,
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.blueAccent,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 onPressed: _submitting ? null : _submit,
                 icon: _submitting
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 22,
                         height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       )
                     : const Icon(Icons.description),

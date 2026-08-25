@@ -150,6 +150,7 @@ async def my_service_requests(
         )
         .options(
             selectinload(ServiceRequest.equipment),
+            selectinload(ServiceRequest.user),
             selectinload(ServiceRequest.assigned_technician),
         )
         .where(ServiceRequest.user_id == user.id)
@@ -171,6 +172,13 @@ async def create_service_request(
         eq = await db.get(Equipment, payload.equipment_id)
         if eq is None:
             raise HTTPException(status_code=404, detail="Equipment not found")
+        if payload.technology is not None:
+            category = await db.get(EquipmentCategory, eq.category_id)
+            if payload.technology not in (category.technologies or []):
+                raise HTTPException(
+                    status_code=422,
+                    detail="Technology is not available for the selected equipment category",
+                )
 
     # Crear geometría PostGIS WKT POINT(longitude latitude)
     point_wkt = f"POINT({payload.longitude} {payload.latitude})"
@@ -179,6 +187,7 @@ async def create_service_request(
         user_id=user.id,
         equipment_id=payload.equipment_id,
         category_hint=payload.category_hint,
+        technology=payload.technology,
         service_type=payload.service_type,
         description=payload.description,
         location=point_wkt,
@@ -427,6 +436,7 @@ async def get_service_request_detail(
             selectinload(ServiceRequest.bids).selectinload(TechnicianBid.technician),
             selectinload(ServiceRequest.agreements),
             selectinload(ServiceRequest.assigned_technician),
+            selectinload(ServiceRequest.user),
         )
         .where(ServiceRequest.id == service_request_id)
     )
@@ -461,6 +471,7 @@ def _request_summary(request: ServiceRequest) -> dict:
         "service_type": request.service_type,
         "description": request.description,
         "equipment": request.equipment.name if request.equipment else None,
+        "technology": request.technology,
         "created_at": request.created_at.isoformat() if request.created_at else None,
         "budget_offered": request.budget_offered,
         "technician": (
@@ -488,6 +499,7 @@ def _request_detail(
         "status": request.status,
         "service_type": request.service_type,
         "description": request.description,
+        "technology": request.technology,
         "equipment": (
             {
                 "id": request.equipment.id,
@@ -510,6 +522,11 @@ def _request_detail(
                 "specialty": technician.specialty,
             }
             if technician
+            else None
+        ),
+        "client": (
+            {"id": request.user.id, "full_name": request.user.full_name}
+            if request.user
             else None
         ),
         # Línea de tiempo: bids y pactos en orden cronológico (RF-SR-010).
