@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
   pull_request:
     branches:
       - main
@@ -25,11 +27,14 @@ jobs:
     - name: Set up Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.19.0' # Choose appropriate version for your project
         channel: 'stable'
 
     - name: Install dependencies
       run: flutter pub get
+      working-directory: cold_day_flutter
+
+    - name: Run tests
+      run: flutter test
       working-directory: cold_day_flutter
 
     - name: Inject Google Maps API Key
@@ -46,3 +51,11 @@ jobs:
       with:
         name: cold-day-app-apk
         path: cold_day_flutter/build/app/outputs/flutter-apk/app-release.apk
+
+    - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: cold_day_flutter/build/app/outputs/flutter-apk/app-release.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
