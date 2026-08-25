@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-import 'package:cold_day_flutter/core/map/map_config.dart';
 import 'package:cold_day_flutter/core/network/api_client.dart';
 import 'package:cold_day_flutter/core/theme/app_theme.dart';
 import 'package:cold_day_flutter/core/widgets/app_widgets.dart';
@@ -16,7 +14,7 @@ class TechnicianMapScreen extends StatefulWidget {
 }
 
 class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
-  final _mapController = MapController();
+  GoogleMapController? _mapController;
   List<Map<String, dynamic>> _requests = [];
   double _radius = 10;
   String? _serviceType;
@@ -32,7 +30,7 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
 
   @override
   void dispose() {
-    _mapController.dispose();
+    _mapController?.dispose();
     super.dispose();
   }
 
@@ -88,7 +86,7 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
     final lon = _coordinate(request['longitude'], latitude: false);
     if (id == null || lat == null || lon == null) return;
     setState(() => _selectedId = id);
-    _mapController.move(LatLng(lat, lon), 15);
+    _mapController?.animateCamera(CameraUpdate.newLatLngZoom(LatLng(lat, lon), 15));
   }
 
   Future<void> _showFilters() async {
@@ -257,28 +255,42 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
           ),
         )
         .toList();
-    return FlutterMap(
-      mapController: _mapController,
-      options: MapOptions(
-        initialCenter: points.first,
-        initialZoom: 13,
-        onMapReady: () {
-          if (points.length > 1)
-            _mapController.fitCamera(
-              CameraFit.bounds(
-                bounds: LatLngBounds.fromPoints(points),
-                padding: const EdgeInsets.all(48),
-                maxZoom: 16,
-              ),
-            );
-        },
-      ),
+
+    return Stack(
       children: [
-        TileLayer(
-          urlTemplate: mapTileUrl,
-          userAgentPackageName: 'com.coldday.app',
-        ),
-        MarkerLayer(
+        GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: points.first,
+            zoom: 13,
+          ),
+          onMapCreated: (controller) {
+            _mapController = controller;
+            if (points.length > 1) {
+              double minLat = points.first.latitude;
+              double minLng = points.first.longitude;
+              double maxLat = points.first.latitude;
+              double maxLng = points.first.longitude;
+
+              for (final point in points) {
+                if (point.latitude < minLat) minLat = point.latitude;
+                if (point.longitude < minLng) minLng = point.longitude;
+                if (point.latitude > maxLat) maxLat = point.latitude;
+                if (point.longitude > maxLng) maxLng = point.longitude;
+              }
+
+              Future.delayed(const Duration(milliseconds: 200), () {
+                _mapController?.animateCamera(
+                  CameraUpdate.newLatLngBounds(
+                    LatLngBounds(
+                      southwest: LatLng(minLat, minLng),
+                      northeast: LatLng(maxLat, maxLng),
+                    ),
+                    48.0,
+                  ),
+                );
+              });
+            }
+          },
           markers: requests.map((request) {
             final point = LatLng(
               _coordinate(request['latitude'], latitude: true)!,
@@ -286,28 +298,14 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
             );
             final selected = request['id'] == _selectedId;
             return Marker(
-              point: point,
-              width: 56,
-              height: 56,
-              child: Semantics(
-                button: true,
-                label: 'Solicitud ${request['id']}',
-                child: GestureDetector(
-                  onTap: () => _select(request),
-                  child: Icon(
-                    Icons.location_on,
-                    size: selected ? 50 : 42,
-                    color: selected
-                        ? Theme.of(context).colorScheme.secondary
-                        : Theme.of(context).colorScheme.primary,
-                  ),
-                ),
+              markerId: MarkerId(request['id'].toString()),
+              position: point,
+              onTap: () => _select(request),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                selected ? BitmapDescriptor.hueAzure : BitmapDescriptor.hueRed,
               ),
             );
-          }).toList(),
-        ),
-        RichAttributionWidget(
-          attributions: [TextSourceAttribution(mapAttribution)],
+          }).toSet(),
         ),
         Positioned(
           top: AppSpacing.md,

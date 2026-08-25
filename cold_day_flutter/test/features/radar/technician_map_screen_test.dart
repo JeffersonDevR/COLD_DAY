@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -59,7 +59,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: TechnicianMapScreen()));
     await tester.pumpAndSettle();
 
-    expect(find.byType(FlutterMap), findsOneWidget);
+    expect(find.byType(GoogleMap), findsOneWidget);
     expect(find.text('Nevera'), findsOneWidget);
     expect(find.textContaining('No enfría'), findsOneWidget);
   });

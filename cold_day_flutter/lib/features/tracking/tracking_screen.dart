@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cold_day_flutter/core/network/api_client.dart';
-import 'package:cold_day_flutter/core/map/map_config.dart';
 import 'package:cold_day_flutter/core/widgets/app_widgets.dart';
 
 class TrackingScreen extends StatefulWidget {
@@ -31,7 +29,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   Map<String, dynamic>? _techLocation;
   bool _loading = true;
   String? _error;
-  final MapController _mapController = MapController();
+  GoogleMapController? _mapController;
   LatLng? _lastTechnicianPoint;
 
   double? _coordinate(Object? value, {required bool latitude}) {
@@ -89,11 +87,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
         _lastTechnicianPoint = point;
       });
       if (point != null) {
-        try {
-          _mapController.move(point, _mapController.camera.zoom);
-        } on StateError {
-          // The first response can arrive before FlutterMap attaches its controller.
-        }
+        _mapController?.animateCamera(CameraUpdate.newLatLng(point));
       }
     } catch (e) {
       if (!mounted) return;
@@ -144,71 +138,28 @@ class _TrackingScreenState extends State<TrackingScreen> {
                 Expanded(
                   child: Stack(
                     children: [
-                      FlutterMap(
-                        mapController: _mapController,
-                        options: MapOptions(
-                          initialCenter: LatLng(
-                            clientLatitude,
-                            clientLongitude,
-                          ),
-                          initialZoom: 14.0,
+                      GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: LatLng(clientLatitude, clientLongitude),
+                          zoom: 14.0,
                         ),
-                        children: [
-                          TileLayer(
-                            urlTemplate: mapTileUrl,
-                            userAgentPackageName: 'com.coldday.app',
+                        onMapCreated: (controller) => _mapController = controller,
+                        markers: {
+                          Marker(
+                            markerId: const MarkerId('client'),
+                            position: LatLng(clientLatitude, clientLongitude),
                           ),
-                          MarkerLayer(
-                            markers: [
-                              Marker(
-                                point: LatLng(clientLatitude, clientLongitude),
-                                width: 40,
-                                height: 40,
-                                child: Icon(
-                                  Icons.home,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 40,
-                                ),
+                          if (_coordinate(_techLocation?['latitude'], latitude: true) != null &&
+                              _coordinate(_techLocation?['longitude'], latitude: false) != null)
+                            Marker(
+                              markerId: const MarkerId('technician'),
+                              position: LatLng(
+                                _coordinate(_techLocation!['latitude'], latitude: true)!,
+                                _coordinate(_techLocation!['longitude'], latitude: false)!,
                               ),
-                              if (_coordinate(
-                                        _techLocation?['latitude'],
-                                        latitude: true,
-                                      ) !=
-                                      null &&
-                                  _coordinate(
-                                        _techLocation?['longitude'],
-                                        latitude: false,
-                                      ) !=
-                                      null)
-                                Marker(
-                                  point: LatLng(
-                                    _coordinate(
-                                      _techLocation!['latitude'],
-                                      latitude: true,
-                                    )!,
-                                    _coordinate(
-                                      _techLocation!['longitude'],
-                                      latitude: false,
-                                    )!,
-                                  ),
-                                  width: 40,
-                                  height: 40,
-                                  child: Icon(
-                                    Icons.engineering,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.secondary,
-                                    size: 40,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          RichAttributionWidget(
-                            attributions: [
-                              TextSourceAttribution(mapAttribution),
-                            ],
-                          ),
-                        ],
+                              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                            ),
+                        },
                       ),
                       Positioned(
                         right: 16,
@@ -285,6 +236,10 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
   void _recenter() {
     final point = _lastTechnicianPoint;
-    if (point != null) _mapController.move(point, 15);
+    if (point != null) {
+      _mapController?.animateCamera(CameraUpdate.newCameraPosition(
+        CameraPosition(target: point, zoom: 15),
+      ));
+    }
   }
 }
