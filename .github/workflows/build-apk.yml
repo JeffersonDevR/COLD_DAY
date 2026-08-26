@@ -47,7 +47,7 @@ jobs:
         fi
 
     - name: Build APK
-      run: flutter build apk --release
+      run: flutter build apk --release --android-skip-build-dependency-validation
       working-directory: cold_day_flutter
       env:
         ORG_GRADLE_PROJECT_GOOGLE_MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
