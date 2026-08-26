@@ -37,14 +37,20 @@ jobs:
       run: flutter test
       working-directory: cold_day_flutter
 
-    - name: Inject Google Maps API Key
+    - name: Validate Google Maps API key
+      env:
+        MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
       run: |
-        sed -i "s/YOUR_GOOGLE_MAPS_API_KEY_HERE/${{ secrets.MAPS_API_KEY }}/g" android/app/src/main/AndroidManifest.xml
-      working-directory: cold_day_flutter
+        if [ -z "${MAPS_API_KEY:-}" ]; then
+          echo "MAPS_API_KEY secret is required for APK builds" >&2
+          exit 1
+        fi
 
     - name: Build APK
       run: flutter build apk --release
       working-directory: cold_day_flutter
+      env:
+        ORG_GRADLE_PROJECT_GOOGLE_MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
 
     - name: Upload APK as artifact
       uses: actions/upload-artifact@v4

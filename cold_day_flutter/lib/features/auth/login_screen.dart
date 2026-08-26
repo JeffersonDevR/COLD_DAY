@@ -42,6 +42,10 @@ class _LoginScreenState extends State<LoginScreen> {
     LoginMode.admin => 'admin',
   };
 
+  String get _registrationLabel => widget.mode == LoginMode.technician
+      ? '¿No tenés cuenta? Registrate como técnico'
+      : '¿No tenés cuenta? Registrate';
+
   Future<void> _login() async {
     final document = _documentController.text.trim();
     final password = _passwordController.text;
@@ -191,7 +195,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: GestureDetector(
                     onTap: _loading ? null : _goToRegister,
                     child: Text(
-                      '¿Sin cuenta? Registrate',
+                      _registrationLabel,
                       style: TextStyle(
                         fontSize: 14,
                         color: _loading

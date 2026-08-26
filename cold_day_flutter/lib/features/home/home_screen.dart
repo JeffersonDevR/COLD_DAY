@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cold_day_flutter/features/auth/login_screen.dart';
+import 'package:cold_day_flutter/features/auth/register_client_screen.dart';
+import 'package:cold_day_flutter/features/auth/register_technician_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -159,6 +161,24 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const RegisterClientScreen(),
+                  ),
+                ),
+                child: const Text('Regístrate como cliente'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const RegisterTechnicianScreen(),
+                  ),
+                ),
+                child: const Text('Regístrate como técnico'),
+              ),
             ],
           ),
         ),
