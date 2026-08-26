@@ -19,6 +19,10 @@ class ApiClient {
   /// 3. Android emulador: 10.0.2.2 (alias del host)
   /// 4. iOS simulator / web / desktop: 127.0.0.1
   static String get baseUrl {
+    const String backendUrl = String.fromEnvironment("BACKEND_ENDPOINT", defaultValue: "");
+    if (backendUrl.isNotEmpty) {
+      return backendUrl;
+    }
     const apiPath = "/api";
 
     // Override explícito: flutter run --dart-define=API_URL=http://192.168.1.4:8000
