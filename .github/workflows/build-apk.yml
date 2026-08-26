@@ -43,7 +43,7 @@ jobs:
       working-directory: cold_day_flutter
 
     - name: Build APK
-      run: flutter build apk --release
+      run: flutter build apk --release --android-skip-build-dependency-validation
       working-directory: cold_day_flutter
 
     - name: Upload APK as artifact
