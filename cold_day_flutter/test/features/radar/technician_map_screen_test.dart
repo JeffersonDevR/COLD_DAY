@@ -120,4 +120,21 @@ void main() {
     expect(find.text('Ubicación disponible'), findsOneWidget);
     expect(find.text('Enviar oferta'), findsOneWidget);
   });
+
+  testWidgets('renders map and empty status when no requests nearby', (tester) async {
+    ApiClient.setClient(
+      _FakeClient(
+        http.Response(
+          jsonEncode({'requests': []}),
+          200,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: TechnicianMapScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(GoogleMap), findsOneWidget);
+    expect(find.text('No hay solicitudes cercanas'), findsOneWidget);
+  });
 }

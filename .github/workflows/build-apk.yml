@@ -37,7 +37,7 @@ jobs:
       run: flutter test
       working-directory: cold_day_flutter
 
-    - name: Validate Google Maps API key
+    - name: Validate secrets
       env:
         MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
       run: |
@@ -46,8 +46,16 @@ jobs:
           exit 1
         fi
 
+    - name: Configure Android secrets.properties
+      run: |
+        echo "MAPS_API_KEY=${{ secrets.MAPS_API_KEY }}" > android/secrets.properties
+      working-directory: cold_day_flutter
+
     - name: Build APK
-      run: flutter build apk --release --android-skip-build-dependency-validation
+      run: >
+        flutter build apk --release --android-skip-build-dependency-validation
+        --dart-define=BACKEND_ENDPOINT=${{ secrets.BACKEND_ENDPOINT }}
+        --dart-define=API_URL=${{ secrets.BACKEND_ENDPOINT }}
       working-directory: cold_day_flutter
       env:
         ORG_GRADLE_PROJECT_GOOGLE_MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}

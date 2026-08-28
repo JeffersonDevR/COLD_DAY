@@ -179,9 +179,17 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
       ).showSnackBar(const SnackBar(content: Text('Oferta enviada')));
   }
 
+  static const LatLng _defaultLocation = LatLng(7.8939, -72.5078); // Cúcuta
+
   @override
   Widget build(BuildContext context) {
     final requests = _validRequests;
+    final emptyMessage = _requests.isEmpty
+        ? 'No hay solicitudes cercanas'
+        : _serviceType == null
+        ? 'No hay solicitudes con ubicación válida'
+        : 'No hay resultados con estos filtros';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Radar de solicitudes'),
@@ -206,20 +214,10 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
               message: _error!,
               action: _loadRequests,
             )
-          : requests.isEmpty
-          ? AsyncStateView(
-              icon: _requests.isEmpty ? Icons.radar : Icons.location_off,
-              message: _requests.isEmpty
-                  ? 'No hay solicitudes cercanas'
-                  : _serviceType == null
-                  ? 'No hay solicitudes con ubicación válida'
-                  : 'No hay resultados con estos filtros',
-              action: _loadRequests,
-            )
           : Column(
               children: [
                 Expanded(flex: 5, child: _buildMap(requests)),
-                if (_selectedId != null)
+                if (_selectedId != null && requests.isNotEmpty)
                   _RequestDetails(
                     request: requests.firstWhere(
                       (item) => item['id'] == _selectedId,
@@ -230,16 +228,48 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
                   ),
                 Expanded(
                   flex: 4,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: requests.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, index) => _RequestTile(
-                      request: requests[index],
-                      selected: requests[index]['id'] == _selectedId,
-                      onTap: () => _select(requests[index]),
-                    ),
-                  ),
+                  child: requests.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  _requests.isEmpty
+                                      ? Icons.radar
+                                      : Icons.location_off,
+                                  size: 40,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outlineVariant,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  emptyMessage,
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                                const SizedBox(height: 12),
+                                OutlinedButton.icon(
+                                  onPressed: _loadRequests,
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text('Buscar de nuevo'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: requests.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (_, index) => _RequestTile(
+                            request: requests[index],
+                            selected: requests[index]['id'] == _selectedId,
+                            onTap: () => _select(requests[index]),
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -256,16 +286,34 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
         )
         .toList();
 
+    final centerPoint = points.isNotEmpty ? points.first : _defaultLocation;
+
     return Stack(
       children: [
         GoogleMap(
           initialCameraPosition: CameraPosition(
-            target: points.first,
+            target: centerPoint,
             zoom: 13,
           ),
+          myLocationEnabled: true,
+          myLocationButtonEnabled: true,
+          circles: {
+            Circle(
+              circleId: const CircleId('radar_coverage'),
+              center: centerPoint,
+              radius: _radius * 1000,
+              fillColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.10),
+              strokeColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.40),
+              strokeWidth: 2,
+            ),
+          },
           onMapCreated: (controller) {
             _mapController = controller;
-            if (points.length > 1) {
+            if (points.length == 1) {
+              _mapController?.animateCamera(
+                CameraUpdate.newLatLngZoom(points.first, 14),
+              );
+            } else if (points.length > 1) {
               double minLat = points.first.latitude;
               double minLng = points.first.longitude;
               double maxLat = points.first.latitude;
@@ -278,17 +326,23 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
                 if (point.longitude > maxLng) maxLng = point.longitude;
               }
 
-              Future.delayed(const Duration(milliseconds: 200), () {
+              if (minLat == maxLat && minLng == maxLng) {
                 _mapController?.animateCamera(
-                  CameraUpdate.newLatLngBounds(
-                    LatLngBounds(
-                      southwest: LatLng(minLat, minLng),
-                      northeast: LatLng(maxLat, maxLng),
-                    ),
-                    48.0,
-                  ),
+                  CameraUpdate.newLatLngZoom(points.first, 14),
                 );
-              });
+              } else {
+                Future.delayed(const Duration(milliseconds: 200), () {
+                  _mapController?.animateCamera(
+                    CameraUpdate.newLatLngBounds(
+                      LatLngBounds(
+                        southwest: LatLng(minLat, minLng),
+                        northeast: LatLng(maxLat, maxLng),
+                      ),
+                      48.0,
+                    ),
+                  );
+                });
+              }
             }
           },
           markers: requests.map((request) {
@@ -301,6 +355,10 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
               markerId: MarkerId(request['id'].toString()),
               position: point,
               onTap: () => _select(request),
+              infoWindow: InfoWindow(
+                title: request['equipment'] as String? ?? 'Solicitud',
+                snippet: request['description'] as String? ?? 'Toca para ver detalles',
+              ),
               icon: BitmapDescriptor.defaultMarkerWithHue(
                 selected ? BitmapDescriptor.hueAzure : BitmapDescriptor.hueRed,
               ),
@@ -330,7 +388,9 @@ class _TechnicianMapScreenState extends State<TechnicianMapScreen> {
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
-                        '${requests.length} solicitudes con ubicación disponible',
+                        requests.isEmpty
+                            ? 'Radar activo · Radio ${_radius.toStringAsFixed(0)} km'
+                            : '${requests.length} solicitudes en tu radio (${_radius.toStringAsFixed(0)} km)',
                         style: Theme.of(context).textTheme.labelLarge,
                       ),
                     ),
